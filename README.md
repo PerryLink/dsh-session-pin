@@ -33,7 +33,7 @@ Session lists sort by recency: the conversation you rely on all week slowly sink
 
 - 🧷 **Hover pin badge** — a gray pushpin fades in at the left of the session title on hover; pinned sessions keep a solid amber pin. One click toggles, and the click never opens the session.
 - 📌 **Top ordering** — pinning moves the session to the front of its workspace account via the public `workspace.insertSessionBefore` RPC. Under the core's **Manual** order the position stays put — no activity re-sorting.
-- 💾 **Durable & cross-browser** — the pinned set lives in the host-side `session-pin` settings namespace (file-backed, hot-reloaded), written through the standard `settings.*` RPCs. Restart DSH, switch browsers: pins survive.
+- 💾 **Persistent pinning** — the host half registers the durable `session-pin` settings namespace; the browser half writes through the standard `settings.*` RPCs. On current DSH builds the web proxy serves only its allowlisted namespaces, so until that allowlist moves to `settings.register()` (upstream deferred work) the browser half falls back to `localStorage` — pins survive reloads in the same browser either way.
 - 🔢 **Optional limit** — `config.maxPins` caps the pinned count (default `0` = unlimited); exceeding it is rejected with a log line.
 - 🧩 **Zero core changes** — a standalone plugin for the stock DSH Web GUI; no patched harness required.
 - 🌍 **Five languages** — English · 中文 · Español · Português · हिन्दी.
@@ -100,6 +100,7 @@ pnpm run build      # dual-half build + client-bundle purity check
 
 ## ⚠️ Known limitations
 
+- **Persistence scope** — on the current DSH baseline the `session-pin` settings namespace is not in the web proxy's served-allowlist, so the browser half stores pins in `localStorage` (browser-local) until upstream exposes plugin namespaces. The host-side namespace registration is already in place and becomes the durable store automatically once that lands.
 - **Ordering scope** — the pinned position is stable only under **Manual** order; under **Updated** order the core's activity promotion re-fronts active sessions. Ungrouped and flat-list views have no host-side account, so position is not persisted there (badges and pin state still work).
 - **Remote browsers** — settings RPCs are loopback-only; remote browsers fall back to browser-local `localStorage`.
 - **Duplicate titles** — rows are matched by title text; with duplicate titles the badge shows on every matching row and toggles the first match (cosmetic).

@@ -33,7 +33,7 @@ Las listas de sesiones se ordenan por actividad reciente: la conversación en la
 
 - 🧷 **Pin al pasar el cursor** — un chincheta gris aparece a la izquierda del título al pasar el cursor; las sesiones fijadas muestran un pin ámbar fijo. Un clic alterna, sin abrir la sesión.
 - 📌 **Orden superior** — fijar mueve la sesión al frente de su cuenta de espacio de trabajo mediante el RPC público `workspace.insertSessionBefore`. En el orden **Manual** del núcleo la posición se mantiene — sin reordenar por actividad.
-- 💾 **Duradero y entre navegadores** — el conjunto fijado vive en el namespace de ajustes `session-pin` del host (respaldado en archivo, recarga en caliente), escrito mediante los RPC estándar `settings.*`. Reinicia DSH, cambia de navegador: los pines sobreviven.
+- 💾 **Fijado persistente** — la mitad host registra el namespace de ajustes `session-pin`; la mitad navegador escribe mediante los RPC estándar `settings.*`. En las builds actuales de DSH el proxy web solo sirve sus namespaces permitidos, así que hasta que esa lista pase a `settings.register()` (trabajo diferido upstream) la mitad navegador usa `localStorage` — los pines sobreviven a recargas en el mismo navegador de cualquier forma.
 - 🔢 **Límite opcional** — `config.maxPins` limita el número de fijados (por defecto `0` = ilimitado); superarlo se rechaza con una línea de log.
 - 🧩 **Cero cambios en el núcleo** — un plugin independiente para la Web GUI oficial de DSH; sin harness parcheado.
 - 🌍 **Cinco idiomas** — English · 中文 · Español · Português · हिन्दी.
@@ -100,6 +100,7 @@ pnpm run build      # compilación de ambas mitades + compuerta de pureza
 
 ## ⚠️ Limitaciones conocidas
 
+- **Alcance de la persistencia** — en la línea base actual de DSH el namespace `session-pin` no está en la lista servida por el proxy web, así que la mitad navegador guarda los pines en `localStorage` (local al navegador) hasta que upstream exponga namespaces de plugins. El registro del namespace en el host ya está listo y pasa a ser el almacén durable automáticamente.
 - **Alcance del orden** — la posición fijada es estable solo en el orden **Manual**; en el orden **Updated** la promoción por actividad del núcleo vuelve a adelantar sesiones activas. Las vistas Ungrouped y de lista plana no tienen cuenta en el host, por lo que la posición no persiste allí (los pines y el estado siguen funcionando).
 - **Navegadores remotos** — los RPC de ajustes son solo loopback; los navegadores remotos usan `localStorage` local.
 - **Títulos duplicados** — las filas se emparejan por texto del título; con títulos duplicados el pin aparece en todas las filas coincidentes y alterna la primera (cosmético).

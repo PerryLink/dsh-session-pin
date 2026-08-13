@@ -33,7 +33,7 @@ As listas de sessões ordenam por atividade recente: a conversa em que você con
 
 - 🧷 **Alfinete ao passar o mouse** — um alfinete cinza surge à esquerda do título ao passar o mouse; sessões fixadas mantêm um alfinete âmbar fixo. Um clique alterna, sem abrir a sessão.
 - 📌 **Ordenação no topo** — fixar move a sessão para a frente da conta do espaço de trabalho pelo RPC público `workspace.insertSessionBefore`. Na ordenação **Manual** do núcleo a posição permanece — sem reordenação por atividade.
-- 💾 **Durável e entre navegadores** — o conjunto fixado vive no namespace de configurações `session-pin` do host (baseado em arquivo, recarga a quente), escrito pelos RPCs padrão `settings.*`. Reinicie o DSH, troque de navegador: os alfinetes sobrevivem.
+- 💾 **Fixação persistente** — a metade host registra o namespace de configurações `session-pin`; a metade navegador escreve pelos RPCs padrão `settings.*`. Nas builds atuais do DSH o proxy web serve apenas seus namespaces permitidos, então até essa lista passar para `settings.register()` (trabalho diferido upstream) a metade navegador usa `localStorage` — os alfinetes sobrevivem a recargas no mesmo navegador de qualquer forma.
 - 🔢 **Limite opcional** — `config.maxPins` limita a contagem de fixados (padrão `0` = ilimitado); excedê-lo é rejeitado com uma linha de log.
 - 🧩 **Zero mudanças no núcleo** — um plugin independente para a Web GUI oficial do DSH; sem harness com patches.
 - 🌍 **Cinco idiomas** — English · 中文 · Español · Português · हिन्दी.
@@ -100,6 +100,7 @@ pnpm run build      # compilação das duas metades + barreira de pureza
 
 ## ⚠️ Limitações conhecidas
 
+- **Alcance da persistência** — na linha de base atual do DSH o namespace `session-pin` não está na lista servida pelo proxy web, então a metade navegador guarda os alfinetes em `localStorage` (local ao navegador) até o upstream expor namespaces de plugins. O registro do namespace no host já está pronto e vira o armazenamento durável automaticamente.
 - **Alcance da ordenação** — a posição fixada é estável apenas na ordenação **Manual**; na ordenação **Updated** a promoção por atividade do núcleo volta a adiantar sessões ativas. As visualizações Ungrouped e de lista plana não têm conta no host, então a posição não persiste nelas (os alfinetes e o estado ainda funcionam).
 - **Navegadores remotos** — os RPCs de configurações são apenas loopback; navegadores remotos usam o `localStorage` local.
 - **Títulos duplicados** — as linhas são emparelhadas pelo texto do título; com títulos duplicados o alfinete aparece em todas as linhas coincidentes e alterna a primeira (cosmético).
