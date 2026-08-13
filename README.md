@@ -1,59 +1,115 @@
-# dsh-session-pin
+# 📌 dsh-session-pin
 
-**简体中文** | [English](./README.en.md)
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="README.zh-CN.md">中文</a> ·
+  <a href="README.es.md">Español</a> ·
+  <a href="README.pt.md">Português</a> ·
+  <a href="README.hi.md">हिन्दी</a>
+</p>
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）Web GUI 增加「钉住会话」能力的双面插件（宿主 + 浏览器）：把鼠标移到侧边栏会话行上，标题最左侧浮现灰色图钉；点击后图钉变为黄色（琥珀色），该会话被钉住——记录到宿主端设置（跨重启、跨浏览器），并在其工作区分组中移动到最前。再次点击取消钉住。
+<p align="center">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache-2.0">
+  <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-2ea44f.svg" alt="Topic: dsh-plugin"></a>
+  <img src="https://img.shields.io/badge/DSH-0.1.0--rc.6-3884ff.svg" alt="DSH baseline: 0.1.0-rc.6">
+  <img src="https://img.shields.io/github/stars/PerryLink/dsh-session-pin?style=flat" alt="GitHub stars">
+</p>
 
-## 功能
+> **Pin the conversations that matter.** A dual-face (host + browser) plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that puts a one-click pin badge on every session row — gray on hover, amber while pinned — moves pinned sessions to the top of their workspace group, and keeps the pin across restarts and browsers.
 
-- **图钉徽标**：悬停会话行时标题左侧浮现灰色图钉，已钉住的会话常显黄色图钉，点击切换钉住/取消（行内点击不会误触打开会话）。
-- **置顶排序**：钉住时通过公开 RPC `workspace.insertSessionBefore` 把会话移到其工作区账户首位；核心的「手动（Manual）排序」模式下位置不会被活动打乱。
-- **钉住上限（可选）**：`config.maxPins` 限制最大钉住数（默认 0 = 不限），超限时浏览器端拒绝并记日志。
-- **持久化**：钉住集合存放在宿主端 `session-pin` settings 命名空间（文件持久、热重载），由浏览器半通过标准 `settings.*` RPC 读写。
+## Why pinning?
 
-## 安装
+Session lists sort by recency: the conversation you rely on all week slowly sinks to the bottom, and every new chat buries it further. Dragging rows in the Manual sort mode works, but nobody discovers it — and pinned chats that still get re-sorted on activity are exactly what users of other coding agents complain about. `dsh-session-pin` gives you the one-click UX instead:
 
-在 DSH 的 `cordis.yml` 中注册插件：
+```
+┌─ Sessions ──────────────────────────────┐
+│ 📌 Implement login flow         3h      │  ← pinned: amber pin, always visible
+│   Fix the auth bug              1h      │  ← hover shows a gray pin to toggle
+│   Refactor the DB layer         2d      │
+└─────────────────────────────────────────┘
+```
+
+## ✨ Features
+
+- 🧷 **Hover pin badge** — a gray pushpin fades in at the left of the session title on hover; pinned sessions keep a solid amber pin. One click toggles, and the click never opens the session.
+- 📌 **Top ordering** — pinning moves the session to the front of its workspace account via the public `workspace.insertSessionBefore` RPC. Under the core's **Manual** order the position stays put — no activity re-sorting.
+- 💾 **Durable & cross-browser** — the pinned set lives in the host-side `session-pin` settings namespace (file-backed, hot-reloaded), written through the standard `settings.*` RPCs. Restart DSH, switch browsers: pins survive.
+- 🔢 **Optional limit** — `config.maxPins` caps the pinned count (default `0` = unlimited); exceeding it is rejected with a log line.
+- 🧩 **Zero core changes** — a standalone plugin for the stock DSH Web GUI; no patched harness required.
+- 🌍 **Five languages** — English · 中文 · Español · Português · हिन्दी.
+
+## 🚀 Quick start
+
+1. **Install** — add the plugin to your profile's `cordis.yml`:
 
 ```yaml
 plugins:
   '@dsh-external/dsh-session-pin':
     path: /path/to/dsh-session-pin
     config:
-      maxPins: 5      # 可选；0 = 不限（默认）
+      maxPins: 5      # optional; 0 = unlimited (default)
 ```
 
-先构建再启动（缺少构建产物会导致 `dsh web` 拒绝启动）：
+2. **Build** (the web app refuses to start with a missing client bundle):
 
 ```sh
 pnpm install
 pnpm run build      # lib/index.js + lib/client.js
 ```
 
-重启 `dsh web` 后，浏览器端插件随页面加载（`/plugins/@dsh-external/dsh-session-pin/client.js`），`window.__DSH_BOOT__` 清单包含本插件。
+3. **Restart** `dsh web` and hover any session row in the sidebar — the pin badge appears at the left of the title. Click to pin.
 
-## 构建 / 测试
+**Uninstall** — remove the plugin row from `cordis.yml` and restart. The `session-pin` section can also be removed from `settings.yaml`; nothing else is written.
+
+## ⚙️ Configuration
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `maxPins` | integer | `0` | Maximum pinned sessions; `0` = unlimited. Unpinning always works. |
+
+## 🧠 How it works
+
+- **Host half** (`src/index.ts`) — registers the `session-pin` settings namespace (`{ pinned: string[], maxPins }`). No session events, no model traffic.
+- **Browser half** (`src/client.ts`) — binds the namespace through `ctx.settingsScope`, renders badges over the core session rows, and orders through `ctx.workspaces`. A `MutationObserver` re-applies badges after React re-renders; rows are identified by `[role="treeitem"][aria-selected]` plus title text (no row-level extension slot exists for third-party plugins yet).
+- **Build** — esbuild emits the host ESM half and the client CJS half wrapped in the web boot factory (`window.__ModuleLoader__.load({ id, factory })`), with a purity gate that fails the build if any `@deepseek-ai/*` value import leaks into the browser bundle.
+
+**Extension points used:** `settings` (host), `sessions` / `workspaces` / `settingsScope` / `connection` / `remote` (client). **Model-visible effects: none** — this is a UI-only plugin: it adds no session events and no tokens to any model request.
+
+## 📦 Compatibility
+
+| Layer | Baseline |
+|---|---|
+| DeepSeek Harness | snapshot 0812 / npm `@deepseek-ai/dsh@0.1.0-rc.6` generation (client packages `0.1.0-rc.6`) |
+| Cordis peer | `@deepseek-ai/cordis: ^4.0.1` |
+| Node (dev) | ≥ 22 |
+
+## 🧪 Development
 
 ```sh
-pnpm run build      # esbuild 双半构建 + 客户端包纯度检查
-pnpm run test       # pin-core 纯逻辑单测（vitest）
+pnpm install
 pnpm run typecheck  # tsc --noEmit
+pnpm run test       # vitest unit tests
+pnpm run build      # dual-half build + client-bundle purity check
 ```
 
-## 设计说明
+## 🗺️ Roadmap
 
-- 双面插件：宿主半只注册 `session-pin` settings 命名空间（schema：`{ pinned: string[] }`）；浏览器半通过 `ctx.settingsScope.bind()` 读写，通过 `ctx.sessions`/`ctx.workspaces` 渲染与排序。
-- 会话行没有第三方行内扩展槽位，徽标通过 DOM 覆层注入：以 `[role="treeitem"][aria-selected]` 识别会话行，按标题文本与会话列表关联，`MutationObserver` 在 React 重渲染后幂等重挂。
-- 客户端包为 web boot 工厂格式（`window.__ModuleLoader__.load({ id, factory })`），仅类型导入 `@deepseek-ai/*`；构建脚本的纯度检查会拒绝任何漏进客户端包的 `@deepseek-ai` 值导入。
+- Right-click / row-menu "Pin" entry (needs a core row-level slot or a menu overlay).
+- Standalone **Pinned section** at the top of the sidebar, Slack-Starred-style — informed by how Cursor, Claude, Slack, Notion and Telegram all converge on a dedicated pinned block.
+- Canonical residence: a log-backed `session/pin` event (the `session/title` pattern) once a client-readable projection channel exists.
 
-## 版本兼容
+## ⚠️ Known limitations
 
-针对 DSH snapshot0812 基线（npm `@deepseek-ai/dsh@0.1.0-rc.6` 世代，客户端包 `@deepseek-ai/dsh-client-runtime@0.0.1-rc.1` 等）开发；cordis peer 为 `@deepseek-ai/cordis: ^4.0.1`。
+- **Ordering scope** — the pinned position is stable only under **Manual** order; under **Updated** order the core's activity promotion re-fronts active sessions. Ungrouped and flat-list views have no host-side account, so position is not persisted there (badges and pin state still work).
+- **Remote browsers** — settings RPCs are loopback-only; remote browsers fall back to browser-local `localStorage`.
+- **Duplicate titles** — rows are matched by title text; with duplicate titles the badge shows on every matching row and toggles the first match (cosmetic).
+- **Row DOM dependency** — the overlay relies on the core rows' `role="treeitem"` / `aria-selected` structure and must follow upstream UI changes.
 
-## 已知限制与后续工作
+## 🌐 Community
 
-- **排序范围**：钉住置顶只在「手动（Manual）排序」下稳定；「最近更新（Updated）」模式下核心的活动晋升逻辑会覆盖插件排序。Ungrouped 会话与扁平「一个列表」视图没有宿主端账户，位置不持久（徽标与钉住状态本身仍然生效）。
-- **远程浏览器**：settings RPC 仅限 loopback，远程浏览器自动回退到浏览器本地 localStorage。
-- **同标题会话**：行按标题文本匹配，标题重复时徽标会同时出现在所有同名行上，切换作用于第一个匹配（外观级限制）。
-- **行 DOM 依赖**：覆层依赖核心会话行的 `role="treeitem"`/`aria-selected` 结构，上游 UI 改版后需要跟进。
-- TODO(plugin)：钉住状态的规范化居所是日志级 `session/pin` 事件（如 `session/title` 模式）；待插件可读的投影通道可用后迁移，settings 命名空间先承担持久存储。
+- [DeepSeek Harness Discord](https://discord.gg/Ycq5dCaS4) · [official discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)
+- Discover more plugins on the [`dsh-plugin` topic](https://github.com/topics/dsh-plugin).
+
+## 📜 License
+
+Apache License 2.0 — see [LICENSE](LICENSE). Copyright © 2026 dsh-session-pin contributors.
