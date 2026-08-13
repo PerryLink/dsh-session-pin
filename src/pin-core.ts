@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Pure pin-set logic shared by both halves and the unit tests. No DOM, no
  * cordis, no I/O: everything here is a deterministic transform.

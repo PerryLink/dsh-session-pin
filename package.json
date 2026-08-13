@@ -11,7 +11,10 @@
   "files": [
     "lib",
     "README.md",
-    "README.en.md",
+    "README.zh-CN.md",
+    "README.es.md",
+    "README.pt.md",
+    "README.hi.md",
     "LICENSE"
   ],
   "dsh": {
@@ -48,5 +51,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

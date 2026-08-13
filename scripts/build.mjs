@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Build both plugin halves.
  * - Host half (`lib/index.js`): ESM for the harness process; the shared

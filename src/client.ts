@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Browser half of the dual-face session-pin plugin. Renders a hover pin badge
  * on every session row (gray outline; amber fill while pinned), toggles pin

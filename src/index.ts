@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Host half of the dual-face session-pin plugin: registers the durable
  * `session-pin` settings namespace whose user layer holds the pinned session
