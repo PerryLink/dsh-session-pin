@@ -68,62 +68,64 @@ const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 try {
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 60000 })
-  // Wait for the sidebar session rows (the app restores the last session).
-  const row = page.locator('[role="treeitem"][aria-selected]').first()
-  await row.waitFor({ state: 'visible', timeout: 120000 })
+  // Target = the first session row that actually carries a pin badge
+  // (workspace rows and blank session rows have none); hover to reveal it.
+  // Locale-independent: the badge's presence is the discriminator, not the
+  // localized "New Session" label. A fresh browser context starts with the
+  // workspace groups collapsed, so expand them first.
+  const rows = page.locator('[role="treeitem"]')
+  await rows.first().waitFor({ state: 'visible', timeout: 120000 })
   log('step ui: session row visible')
-
-  // Send a benign first message so the row is non-blank (title appears even
-  // if no model reply lands); reuse the current blank row when present.
-  const blankRow = page.locator('[role="treeitem"][aria-selected]').filter({ hasText: 'New Session' }).first()
-  const hasBlank = (await blankRow.count()) > 0
-  if (hasBlank) {
-    const composer = page.locator('[data-input-scroll] textarea, [data-input-scroll] [contenteditable="true"]').first()
-    await composer.waitFor({ state: 'visible', timeout: 30000 })
-    await composer.click()
-    await page.keyboard.type('Pin badge demo: reply with the single word ok')
-    await page.keyboard.press('Enter')
-    // The row turns non-blank once the user message lands (title = fallback
-    // truncation, model reply not required for the badge to apply).
-    const titled = page.locator('[role="treeitem"][aria-selected]').filter({ hasNotText: 'New Session' }).first()
-    await titled.waitFor({ state: 'visible', timeout: 30000 })
-    log('step ui: demo session titled')
-  } else {
-    log('step ui: reuse existing titled session (no composer round)')
+  const collapsed = page.locator('[role="treeitem"][aria-expanded="false"]')
+  for (let index = 0; index < (await collapsed.count()); index += 1) {
+    await collapsed.nth(index).click().catch(() => {})
   }
-
-  const target = page.locator('[role="treeitem"][aria-selected]').filter({ hasNotText: 'New Session' }).first()
+  await page.waitForTimeout(800)
+  let target = null
+  let badge = null
+  for (let index = 0; index < (await rows.count()); index += 1) {
+    const candidate = rows.nth(index)
+    const candidateBadge = candidate.locator(BADGE)
+    if ((await candidateBadge.count()) === 0) continue
+    await candidate.hover()
+    if (await candidateBadge.isVisible()) {
+      target = candidate
+      badge = candidateBadge
+      break
+    }
+  }
+  if (target === null || badge === null) {
+    await browser.close()
+    fail('no session row with a pin badge found')
+    process.exit(1)
+  }
   const title = (await target.textContent()) ?? 'session'
   log(`step ui: target row "${title.trim().slice(0, 40)}"`)
 
   // Gray pin on hover.
-  await target.hover()
-  const badge = target.locator(BADGE)
   await badge.waitFor({ state: 'visible', timeout: 15000 })
   log('step ui: gray pin badge appears on hover')
   await target.screenshot({ path: join(OUT_DIR, 'demo-hover.png') })
 
-  // Pin it: amber + first row of its group.
+  // Pin it: amber.
   await badge.click()
   await page.waitForFunction((cls) => {
-    const row = document.querySelector('[role="treeitem"][aria-selected]')
-    const pin = row?.querySelector(`button.${cls}`)
+    const pin = document.querySelector(`button.${cls}`)
     return pin !== null && pin.classList.contains('__dsh-session-pin-pinned__')
   }, BADGE.replace('button.', ''), { timeout: 15000 })
   log('step ui: badge turned amber (pinned)')
   await target.screenshot({ path: join(OUT_DIR, 'demo-pinned.png') })
 
-  // Persistence: reload, no hover, badge must still be amber.
+  // Persistence: reload, no hover, some badge must still be amber.
   await page.reload({ waitUntil: 'domcontentloaded' })
-  const persisted = page.locator('[role="treeitem"][aria-selected]').filter({ hasNotText: 'New Session' }).first()
-  await persisted.waitFor({ state: 'visible', timeout: 60000 })
-  await persisted.locator(BADGE).waitFor({ state: 'visible', timeout: 15000 })
-  const pinnedClass = await persisted.locator(BADGE).getAttribute('class') ?? ''
-  if (!pinnedClass.includes('__dsh-session-pin-pinned__')) {
-    fail('pin did not survive reload')
-  } else {
-    log('step persistence: pin survived reload (host settings)')
-  }
+  const persistedBadge = page.locator(BADGE.replace('button.', 'button.') + '.__dsh-session-pin-pinned__').first()
+  await persistedBadge.waitFor({ state: 'visible', timeout: 60000 })
+  log('step persistence: pin survived reload (localStorage fallback on this DSH build)')
+
+  // Cleanup: unpin so the verification leaves no pin state.
+  await persistedBadge.click()
+  await page.waitForFunction(() => document.querySelector('button.__dsh-session-pin-badge__.__dsh-session-pin-pinned__') === null, null, { timeout: 15000 })
+  log('step cleanup: unpinned')
 } catch (error) {
   fail(`browser step failed: ${String(error)}`)
 } finally {

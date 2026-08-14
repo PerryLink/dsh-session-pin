@@ -29,6 +29,15 @@ Las listas de sesiones se ordenan por actividad reciente: la conversación en la
 └─────────────────────────────────────────┘
 ```
 
+## 📸 Demo
+
+Pasa el cursor sobre una fila para revelar el pin gris; haz clic para fijar — ámbar y arriba, sigue fijado tras recargar. (Capturas reales de una ejecución de `dsh web`.)
+
+<p align="center">
+  <img src="docs/demo-hover.png" width="340" alt="Pin gris al pasar el cursor">
+  <img src="docs/demo-pinned.png" width="340" alt="Pin ámbar mientras está fijado">
+</p>
+
 ## ✨ Características
 
 - 🧷 **Pin al pasar el cursor** — un chincheta gris aparece a la izquierda del título al pasar el cursor; las sesiones fijadas muestran un pin ámbar fijo. Un clic alterna, sin abrir la sesión.

@@ -30,18 +30,21 @@ const STORAGE_KEY = 'dsh.session-pin.pinned'
 const BADGE_CLASS = '__dsh-session-pin-badge__'
 const PINNED_CLASS = '__dsh-session-pin-pinned__'
 
-/** Inline pushpin glyph (currentColor: gray default, amber pinned). */
-const PIN_SVG = '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M9.9 1.1a1 1 0 0 1 1.4 0l3.6 3.6a1 1 0 0 1 0 1.4l-1.6 1.6a1 1 0 0 1-.7.3l-2.3.3-2.9 2.9.2 1.5a1 1 0 0 1-1.7.8L2.9 10.5l-2 2a.8.8 0 1 1-1.2-1.2l2-2L-.7 6.9a1 1 0 0 1 .8-1.7l1.5.2 2.9-2.9.3-2.3a1 1 0 0 1 .3-.7z"/></svg>'
+/** Inline pushpin glyph — Lucide-style stroke icon (currentColor: gray default, amber pinned). */
+const PIN_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>'
 
 const STYLE_TEXT = [
   `button.${BADGE_CLASS}{`,
   'all:unset;display:inline-flex;align-items:center;justify-content:center;',
   'width:16px;height:16px;flex:none;margin-right:4px;cursor:pointer;',
-  'color:#8b949e;opacity:0;transition:opacity 80ms;',
+  'border-radius:4px;color:#8b949e;opacity:0;',
+  'transition:opacity 80ms ease,color 120ms ease,background-color 120ms ease;',
   '}',
   `[role="treeitem"][aria-selected]:hover button.${BADGE_CLASS},`,
   `button.${BADGE_CLASS}.${PINNED_CLASS}{opacity:1;}`,
-  `button.${BADGE_CLASS}.${PINNED_CLASS}{color:#e3b341;}`,
+  `button.${BADGE_CLASS}:hover{color:#57606a;background-color:rgba(140,149,159,.12);}`,
+  `button.${BADGE_CLASS}.${PINNED_CLASS}{color:#eab308;}`,
+  `button.${BADGE_CLASS}.${PINNED_CLASS}:hover{color:#fbbf24;background-color:rgba(234,179,8,.12);}`,
 ].join('')
 
 /** Pin-section shape of the settings namespace. */

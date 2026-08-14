@@ -29,6 +29,15 @@ Session lists sort by recency: the conversation you rely on all week slowly sink
 └─────────────────────────────────────────┘
 ```
 
+## 📸 Demo
+
+Hover a session row to reveal the gray pin; click to pin — amber and pinned on top, still pinned after a reload. (Real screenshots from a live `dsh web` run.)
+
+<p align="center">
+  <img src="docs/demo-hover.png" width="340" alt="Gray pin badge on row hover">
+  <img src="docs/demo-pinned.png" width="340" alt="Amber pin badge while pinned">
+</p>
+
 ## ✨ Features
 
 - 🧷 **Hover pin badge** — a gray pushpin fades in at the left of the session title on hover; pinned sessions keep a solid amber pin. One click toggles, and the click never opens the session.

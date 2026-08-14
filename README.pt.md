@@ -29,6 +29,15 @@ As listas de sessões ordenam por atividade recente: a conversa em que você con
 └─────────────────────────────────────────┘
 ```
 
+## 📸 Demonstração
+
+Passe o mouse sobre uma linha para revelar o alfinete cinza; clique para fixar — âmbar e no topo, continua fixado após recarregar. (Capturas reais de uma execução do `dsh web`.)
+
+<p align="center">
+  <img src="docs/demo-hover.png" width="340" alt="Alfinete cinza ao passar o mouse">
+  <img src="docs/demo-pinned.png" width="340" alt="Alfinete âmbar enquanto fixado">
+</p>
+
 ## ✨ Recursos
 
 - 🧷 **Alfinete ao passar o mouse** — um alfinete cinza surge à esquerda do título ao passar o mouse; sessões fixadas mantêm um alfinete âmbar fixo. Um clique alterna, sem abrir a sessão.
