@@ -16,6 +16,10 @@ import { mkdirSync, readFileSync } from 'node:fs'
 
 const ID = '@dsh-external/dsh-session-pin'
 const HOST_EXTERNALS = ['@deepseek-ai/schemastery', '@deepseek-ai/dsh-settings']
+// Platform seed words the shell shares into the module table: the client
+// factory's `require` resolves them to the shell's own instances (never a
+// bundled duplicate). Any other value import inlines a second copy.
+const CLIENT_EXTERNALS = ['react', 'react/jsx-runtime']
 
 mkdirSync('lib', { recursive: true })
 
@@ -38,6 +42,7 @@ await build({
   target: 'es2022',
   outfile: 'lib/client.js',
   sourcemap: true,
+  external: CLIENT_EXTERNALS,
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
   },

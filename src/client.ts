@@ -1,124 +1,204 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Browser half of the dual-face session-pin plugin. Renders a hover pin badge
- * on every session row (gray outline; amber fill while pinned), toggles pin
- * state on click, stores the pinned set through the `session-pin` settings
- * namespace (durable, Host-backed), and moves a newly pinned session to the
- * top of its workspace account through `workspace.insertSessionBefore`.
+ * Browser half of the dual-face session-pin plugin. Assembles the pin store
+ * (Host-backed `session-pin` settings namespace, degrading to browser-local
+ * storage when the transport cannot carry it), the PinController (two pin
+ * levels — sessions and workspaces — plus per-level row colors), the row
+ * overlay and row-slot controls, the session-header toggle, the sidebar foot
+ * action, and the pinned-sessions panel.
  *
- * Rows are matched by their title text — the only stable per-row signal the
- * core exposes today; no per-row slot exists for third-party plugins.
+ * Ordering goes through `workspace.insertSessionBefore` / `workspace.insertBefore`:
+ * a newly pinned session moves to the front of its workspace account and a
+ * newly pinned workspace moves to the front of the workspace list;
+ * `reorderOnLoad` re-asserts both pinned prefixes once the lists are ready
+ * and again on workspace-list changes — idempotent, so it cannot loop
+ * against the core's own re-sorting.
+ *
+ * The row slot (`sessions.row.action`) is the authoritative session-row
+ * surface; while it is declared the DOM overlay skips session rows entirely
+ * (no duplicate pins) and only paints workspace rows, which have no slot.
  * @module @dsh-external/dsh-session-pin/client
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionId, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { normalizePins, togglePin, topAnchor } from './pin-core.ts'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+import { PinController } from './pin-controller.ts'
+import { reorderMoves, topAnchor } from './pin-core.ts'
+import { createPinStore, type PinSection, type StorageEventsLike, type StorageLike } from './pin-store.ts'
+import type { PinRemoteLike, PinTranslate, SessionListFace, WorkspaceListFace } from './faces.ts'
+import { LOCALE_DICTS, LOCALE_NS, fallbackTranslate } from './locales.ts'
+import { mountOverlay, type OverlayDoc } from './overlay.ts'
+import { STYLE_TEXT } from './pin-ui-shared.ts'
+import { createPinUiState, registerSlots } from './ui.ts'
+import { mountRowSlot, ROW_SLOT_KEY, type RowSlotRegistryLike } from './row-slot.ts'
 
 export const name = 'session-pin'
 
 // The settings-scope binder resolves `connection` and `remote` on the caller's
 // context at bind time; this plugin names both so the bound scope's transport
-// and invalidation subscription live on this fiber.
-export const inject = ['sessions', 'workspaces', 'settingsScope', 'connection', 'remote']
+// and invalidation subscription live on this fiber. `slots` is a hard
+// dependency (row badges and slot contributions register on apply): naming it
+// puts the service on this fiber's own store — a bare `ctx.slots` read would
+// otherwise walk the ancestor fiber chain only and never reach the runtime
+// fiber that provides the registry.
+export const inject = ['sessions', 'workspaces', 'settingsScope', 'connection', 'remote', 'slots']
 
 /** Settings namespace registered by the host half. */
 const NAMESPACE = 'session-pin'
-/** Remote-browser fallback (settings RPCs are loopback-only). */
-const STORAGE_KEY = 'dsh.session-pin.pinned'
-/** Badge classes are plugin-owned; hashed core CSS never shares them. */
-const BADGE_CLASS = '__dsh-session-pin-badge__'
-const PINNED_CLASS = '__dsh-session-pin-pinned__'
-
-/** Inline pushpin glyph — Lucide-style stroke icon (currentColor: gray default, amber pinned). */
-const PIN_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>'
-
-const STYLE_TEXT = [
-  `button.${BADGE_CLASS}{`,
-  'all:unset;display:inline-flex;align-items:center;justify-content:center;',
-  'width:16px;height:16px;flex:none;margin-right:4px;cursor:pointer;',
-  'border-radius:4px;color:#8b949e;opacity:0;',
-  'transition:opacity 80ms ease,color 120ms ease,background-color 120ms ease;',
-  '}',
-  `[role="treeitem"][aria-selected]:hover button.${BADGE_CLASS},`,
-  `button.${BADGE_CLASS}.${PINNED_CLASS}{opacity:1;}`,
-  `button.${BADGE_CLASS}:hover{color:#57606a;background-color:rgba(140,149,159,.12);}`,
-  `button.${BADGE_CLASS}.${PINNED_CLASS}{color:#eab308;}`,
-  `button.${BADGE_CLASS}.${PINNED_CLASS}:hover{color:#fbbf24;background-color:rgba(234,179,8,.12);}`,
-].join('')
-
-/** Pin-section shape of the settings namespace. */
-interface PinSection { pinned?: string[]; maxPins?: number }
+/** Plugin identity for style-tag bookkeeping. */
+const PLUGIN_ID = '@dsh-external/dsh-session-pin'
 
 /** Inject the plugin-owned stylesheet once per factory execution. */
-function injectStyles(): void {
+function injectStyles(): HTMLStyleElement {
   const tag = document.createElement('style')
-  tag.dataset.plugin = '@dsh-external/dsh-session-pin'
+  tag.dataset.plugin = PLUGIN_ID
   tag.textContent = STYLE_TEXT
   document.head.appendChild(tag)
+  return tag
 }
 
-/** Read the pinned ids from browser-local storage (remote-browser fallback). */
-function readLocalPins(): string[] {
-  try {
-    return normalizePins(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'))
-  } catch {
-    return []
+/** Access-guarded browser-local storage (private-mode/iframes degrade to memory). */
+function guardedStorage(): StorageLike {
+  return {
+    getItem(key) {
+      try {
+        return window.localStorage.getItem(key)
+      } catch {
+        return null
+      }
+    },
+    setItem(key, value) {
+      try {
+        window.localStorage.setItem(key, value)
+      } catch {
+        /* private mode / disabled storage: pinning degrades to session-lifetime */
+      }
+    },
   }
 }
 
-/** Write the pinned ids to browser-local storage. */
-function writeLocalPins(pinned: readonly string[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(pinned))
-  } catch {
-    /* private mode / disabled storage: pinning degrades to session-lifetime */
+/** Narrow wire face of the upstream `session.setPinned` channel (post-D3 builds). */
+interface SetPinnedChannel {
+  api?: {
+    session?: {
+      setPinned?: (payload: { sessionId: string; pinned: boolean }, signal?: AbortSignal) => Promise<{ ok: boolean }>
+    }
+  }
+  rpc?: {
+    call?: (channel: string, endpoint: string, payload: unknown, signal?: AbortSignal) => Promise<{ ok: boolean }>
   }
 }
 
 /**
- * Mount the pin overlay: settings scope, row badge renderer, and the
- * document-level mutation observer that re-applies badges when React
- * re-renders the session tree.
+ * Build the optional log-backed write channel. The typed api face is
+ * preferred; the generic connection RPC covers builds whose api face predates
+ * the method but whose gateway serves the endpoint. A failed commit disables
+ * the remote (the store takes over) until the next connection generation
+ * re-enables it. Baselines without the endpoint simply never commit through
+ * it — one failed probe on the first toggle, then the store path.
+ * @param ctx - client cordis context.
+ * @returns the remote, or undefined when no channel surface exists.
+ */
+/** A remote commit that neither settles nor rejects within this window
+ * degrades to the store path (the RPC channel is best-effort by contract). */
+const REMOTE_COMMIT_TIMEOUT_MS = 4000
+
+function buildPinRemote(ctx: Context): PinRemoteLike | undefined {
+  // Boundary cast: the connection face is consumed through the narrow wire
+  // channel below (the npm baseline's Context merge does not name the
+  // upstream setPinned method, and may not pull the connection merge at all).
+  const connection = (ctx as unknown as { connection?: SetPinnedChannel }).connection
+  const typed = connection?.api?.session?.setPinned
+  const generic = connection?.rpc?.call
+  if (typeof typed !== 'function' && typeof generic !== 'function') return undefined
+  let enabled = true
+  const commit = async (id: string, pinned: boolean): Promise<{ ok: true } | { ok: false }> => {
+    try {
+      const call = typeof typed === 'function'
+        ? typed({ sessionId: id, pinned })
+        : generic!('/api', 'session.setPinned', { sessionId: id, pinned })
+      const timeout = new Promise<{ ok: false }>(resolve => {
+        setTimeout(() => resolve({ ok: false }), REMOTE_COMMIT_TIMEOUT_MS)
+      })
+      const result = await Promise.race([call, timeout])
+      return result.ok ? { ok: true } : { ok: false }
+    } catch {
+      return { ok: false }
+    }
+  }
+  return {
+    setPinned: async (id, pinned) => {
+      if (!enabled) return { ok: false }
+      const result = await commit(id, pinned)
+      if (!result.ok) enabled = false
+      return result
+    },
+    reenable: () => {
+      enabled = true
+    },
+  }
+}
+
+/** Narrow slot-registry face for the row-slot gate (subscribe + snapshot). */
+interface RowSlotGateRegistry {
+  snapshot(root: string): unknown[]
+  subscribe(key: string, listener: () => void): () => void
+}
+
+/**
+ * Mount the browser half: store, controller, overlay + row-slot controls,
+ * slot contributions, locale copy, and the ordering re-assertion wiring.
  * @param ctx - client cordis context.
  */
 export function apply(ctx: Context): void {
+  const styleTag = injectStyles()
   const scope = ctx.settingsScope.bind<PinSection>({ namespace: NAMESPACE })
-  injectStyles()
+  const store = createPinStore(scope, guardedStorage(), window as unknown as StorageEventsLike)
 
-  let pinned = new Set<string>()
-  let maxPins = 0
-  let renderScheduled = false
-
-  const localMode = (): boolean => {
-    const snapshot = scope.getSnapshot()
-    return snapshot.mode === 'memory' || snapshot.status === 'unavailable'
+  // Narrow the runtime sessions list into the framework-free face (the one
+  // branded-id adaptation point). The snapshot is cached: slot components
+  // feed it to useSyncExternalStore, which compares the return by reference —
+  // a fresh object per read would force a re-render loop.
+  let sessionsCache: ReturnType<SessionListFace['getSnapshot']> | undefined
+  const sessionsFace: SessionListFace = {
+    getSnapshot: () => {
+      if (sessionsCache !== undefined) return sessionsCache
+      const list = ctx.sessions.list.getSnapshot()
+      const byId: Record<string, { displayTitle: string; blank: boolean }> = {}
+      for (const [id, summary] of Object.entries(list.byId)) {
+        byId[id] = { displayTitle: summary.displayTitle, blank: summary.blank }
+      }
+      return sessionsCache = { phase: list.phase, ids: list.ids.map(id => id as string), byId }
+    },
+    subscribe: listener => ctx.sessions.list.subscribe(() => {
+      sessionsCache = undefined
+      listener()
+    }),
   }
 
-  const refreshPinned = (): void => {
-    const snapshot = scope.getSnapshot()
-    pinned = new Set(localMode() ? readLocalPins() : normalizePins(snapshot.value?.pinned ?? []))
-    // Remote browsers cannot read the host base layer; unlimited until the
-    // settings transport is reachable again.
-    maxPins = localMode() ? 0 : snapshot.value?.maxPins ?? 0
-    scheduleRender()
-  }
-
-  const persistPinned = async (next: string[]): Promise<void> => {
-    if (localMode()) {
-      writeLocalPins(next)
-      pinned = new Set(next)
-      scheduleRender()
-      return
-    }
-    // Host mode: the scope subscription republishes the snapshot after the
-    // write settles; rendering follows the snapshot, never the write promise.
-    await scope.set('pinned', next)
+  // Narrow the runtime workspaces list the same way (workspace pins, colors,
+  // and the panel all read the label/id projection).
+  let workspacesCache: ReturnType<WorkspaceListFace['getSnapshot']> | undefined
+  const workspacesFace: WorkspaceListFace = {
+    getSnapshot: () => {
+      if (workspacesCache !== undefined) return workspacesCache
+      const snapshot = ctx.workspaces.list.getSnapshot()
+      return workspacesCache = {
+        phase: snapshot.phase as string,
+        items: snapshot.items.map(item => ({ workspaceId: item.workspaceId as string, title: item.title })),
+      }
+    },
+    subscribe: listener => ctx.workspaces.list.subscribe(() => {
+      workspacesCache = undefined
+      listener()
+    }),
   }
 
   const moveToTop = async (id: string): Promise<void> => {
     const sessionId = id as SessionId
-    const workspace = ctx.workspaces.list.getSnapshot().items.find(item => item.sessionIds.includes(sessionId))
+    const snapshot = ctx.workspaces.list.getSnapshot()
+    const workspace = snapshot.items.find(item => item.sessionIds.includes(sessionId))
     if (workspace === undefined) return // ungrouped: no host-side account to reorder
     const anchor = topAnchor(workspace.sessionIds as readonly string[], id)
     if (anchor === undefined) return
@@ -129,84 +209,131 @@ export function apply(ctx: Context): void {
     }
   }
 
-  const onToggle = (ids: readonly string[]): void => {
-    const target = ids[0]
-    if (target === undefined) return
-    const next = togglePin([...pinned], target, maxPins)
-    if (next === null) {
-      ctx.logger.warn(`session-pin: pin limit (${maxPins}) reached; unpin another session first`)
-      return
+  const moveWorkspaceToTop = async (id: string): Promise<void> => {
+    // Runtime probe: older baselines' workspaces service may predate the
+    // workspace-level reorder RPC; the pin state still works without it.
+    const insertBefore = ctx.workspaces.insertBefore as ((workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>) | undefined
+    if (typeof insertBefore !== 'function') return
+    const items = ctx.workspaces.list.getSnapshot().items
+    const index = items.findIndex(item => item.workspaceId === id)
+    if (index <= 0) return
+    try {
+      await insertBefore(id as WorkspaceId, items[0]!.workspaceId)
+    } catch (error: unknown) {
+      ctx.logger.warn(`session-pin: workspace reorder rejected: ${String(error)}`)
     }
-    void persistPinned(next).then(() => {
-      if (next.includes(target)) void moveToTop(target)
-    })
   }
 
-  const titleOf = (): Map<string, string[]> => {
-    const list = ctx.sessions.list.getSnapshot()
-    const byTitle = new Map<string, string[]>()
-    for (const id of list.ids) {
-      const summary = list.byId[id]
-      if (summary === undefined || summary.blank) continue
-      const existing = byTitle.get(summary.displayTitle)
-      if (existing === undefined) byTitle.set(summary.displayTitle, [id as string])
-      else existing.push(id as string)
-    }
-    return byTitle
-  }
-
-  const render = (): void => {
-    renderScheduled = false
-    const byTitle = titleOf()
-    const rows = document.querySelectorAll<HTMLElement>('[role="treeitem"][aria-selected]')
-    for (const row of rows) {
-      const titleEl = [...row.querySelectorAll('span')].find(span =>
-        span.textContent !== null && span.textContent !== '' && byTitle.has(span.textContent))
-      if (titleEl === undefined) {
-        row.querySelector(`:scope > button.${BADGE_CLASS}`)?.remove()
-        continue
+  const reorderer = {
+    moveToTop,
+    reapplyOrder: (pinned: readonly string[]): void => {
+      const snapshot = ctx.workspaces.list.getSnapshot()
+      for (const item of snapshot.items) {
+        const moves = reorderMoves(item.sessionIds as readonly string[], pinned)
+        for (const id of moves) void moveToTop(id)
       }
-      // Duplicate titles: one badge per row; the toggle acts on the first
-      // matching id (documented cosmetic limitation).
-      const ids = byTitle.get(titleEl.textContent ?? '') ?? []
-      const isPinned = ids.some(id => pinned.has(id))
-      let badge = row.querySelector<HTMLButtonElement>(`:scope > button.${BADGE_CLASS}`)
-      if (badge === null) {
-        badge = document.createElement('button')
-        badge.type = 'button'
-        badge.className = BADGE_CLASS
-        badge.innerHTML = PIN_SVG
-        badge.addEventListener('click', (event) => {
-          event.stopPropagation()
-          onToggle(ids)
-        })
-        row.insertBefore(badge, row.firstChild)
-      }
-      badge.classList.toggle(PINNED_CLASS, isPinned)
-      badge.title = isPinned ? 'Unpin session' : 'Pin session'
-      badge.setAttribute('aria-label', isPinned ? 'Unpin session' : 'Pin session')
-    }
+    },
+    moveWorkspaceToTop,
+    reapplyWorkspaceOrder: (pinned: readonly string[]): void => {
+      const ids = ctx.workspaces.list.getSnapshot().items.map(item => item.workspaceId as string)
+      const moves = reorderMoves(ids, pinned)
+      for (const id of moves) void moveWorkspaceToTop(id)
+    },
   }
 
-  const scheduleRender = (): void => {
-    if (renderScheduled) return
-    renderScheduled = true
-    const run = (): void => { render() }
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run)
-    else setTimeout(run, 0)
+  const remote = buildPinRemote(ctx)
+  ctx.on('connection/reset', () => {
+    remote?.reenable()
+  })
+  // The controller consumes the workspace list through a phase+ids face; the
+  // UI faces keep the label projection.
+  const workspacePinSource = {
+    getSnapshot: () => {
+      const snapshot = workspacesFace.getSnapshot()
+      return { phase: snapshot.phase, ids: snapshot.items.map(item => item.workspaceId) }
+    },
+    subscribe: workspacesFace.subscribe,
   }
+  const controller = new PinController(store, sessionsFace, workspacePinSource, reorderer, remote)
+  const ui = createPinUiState()
+
+  // Optional locale service: bind the plugin namespace when the composition
+  // ships one; the fallback keeps English without it. The holder indirection
+  // keeps slot inject faces stable while the binding upgrades live.
+  let translate: PinTranslate = fallbackTranslate
+  ctx.inject(['locale'], (localeCtx) => {
+    localeCtx.locale.register(LOCALE_NS, LOCALE_DICTS)
+    const bound = localeCtx.locale.bind(LOCALE_NS)
+    translate = key => bound(key)
+  })
+
+  // Row-slot gate: while the upstream `sessions.row.action` slot is declared,
+  // the React badge owns session rows and the overlay skips them (the
+  // duplicate-pin fix). Declaration can land after apply (boot order is
+  // unconstrained), so the gate refreshes on slot-registry changes. Both
+  // registry methods are runtime-probed: the npm baseline's slots service
+  // predates them, and this plugin must keep degrading gracefully there.
+  const slotsGate = ctx.slots as unknown as RowSlotGateRegistry
+  let rowSlotActive = false
+  const refreshRowSlotActive = (): void => {
+    rowSlotActive = typeof slotsGate.snapshot === 'function' && slotsGate.snapshot(ROW_SLOT_KEY).length > 0
+  }
+  refreshRowSlotActive()
+  const subscribeSlots = typeof slotsGate.subscribe === 'function'
+    ? (listener: () => void): (() => void) => slotsGate.subscribe(ROW_SLOT_KEY, listener)
+    : (): (() => void) => (): void => {}
 
   ctx.effect(() => {
-    const disposeScope = scope.subscribe(refreshPinned)
-    const disposeSessions = ctx.sessions.list.subscribe(scheduleRender)
-    const observer = new MutationObserver(() => { scheduleRender() })
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-    refreshPinned()
+    controller.start()
+    const disposeRowSlot = mountRowSlot({
+      slots: ctx.slots as unknown as RowSlotRegistryLike,
+      pin: controller,
+      t: key => translate(key),
+    })
+    const disposeGate = subscribeSlots(() => {
+      refreshRowSlotActive()
+    })
+    const disposeOverlay = mountOverlay({
+      sessions: sessionsFace,
+      workspaces: workspacesFace,
+      pin: controller,
+      t: key => translate(key),
+      warn: message => {
+        ctx.logger.warn(message)
+      },
+      doc: document as unknown as OverlayDoc,
+      sessionSlotActive: () => rowSlotActive,
+      onSlotsChange: subscribeSlots,
+    })
+    const disposeSlots = registerSlots({
+      ctx,
+      pin: controller,
+      ui,
+      sessions: sessionsFace,
+      workspaces: workspacesFace,
+      t: key => translate(key),
+      openSession: id => {
+        ctx.sessions.open(id as SessionId)
+      },
+      openWorkspace: id => {
+        // Runtime probe: baselines without the startSession helper degrade to
+        // a no-op (the panel row simply closes without jumping).
+        const startSession = ctx.workspaces.startSession as ((workspaceId?: WorkspaceId) => void) | undefined
+        if (typeof startSession === 'function') startSession(id as WorkspaceId)
+        else ctx.logger.warn('session-pin: workspace open unavailable on this baseline')
+      },
+    })
+    const disposeWorkspaces = ctx.workspaces.list.subscribe(() => {
+      controller.reapplyOrder()
+    })
     return () => {
-      observer.disconnect()
-      disposeSessions()
-      disposeScope()
-      for (const badge of document.querySelectorAll(`button.${BADGE_CLASS}`)) badge.remove()
+      disposeWorkspaces()
+      disposeSlots()
+      disposeOverlay()
+      disposeGate()
+      disposeRowSlot()
+      controller.stop()
+      styleTag.remove()
     }
-  }, 'session-pin: row overlay')
+  }, 'session-pin: pin store, badges, and slots')
 }
