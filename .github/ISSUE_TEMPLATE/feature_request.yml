@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose an enhancement for dsh-session-pin
+title: '[Feature]: '
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for the idea! Before submitting, please search the
+        [existing issues](https://github.com/PerryLink/dsh-session-pin/issues)
+        and [discussions](https://github.com/PerryLink/dsh-session-pin/discussions)
+        to avoid duplicates.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: The problem this feature would solve, in your own words.
+      placeholder: 'e.g. I keep losing my most important workspace groups in a long session list.'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What the feature should do once implemented.
+      placeholder: 'e.g. Workspace rows could be collapsed into a single pinned shelf.'
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+      description: Workarounds or alternative designs you have already tried or thought about.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context (optional)
+      description: Anything else that helps — related plugins, DSH builds, screenshots, mockups.
