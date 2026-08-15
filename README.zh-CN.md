@@ -10,116 +10,140 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache-2.0">
+  <img src="https://img.shields.io/npm/v/%40dsh-external%2Fdsh-session-pin" alt="npm 版本">
+  <img src="https://img.shields.io/npm/dm/%40dsh-external%2Fdsh-session-pin" alt="npm 下载量">
+  <img src="https://github.com/PerryLink/dsh-session-pin/actions/workflows/ci.yml/badge.svg" alt="CI">
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-2ea44f.svg" alt="Topic: dsh-plugin"></a>
   <img src="https://img.shields.io/badge/DSH-0.1.0--rc.6-3884ff.svg" alt="DSH 基线: 0.1.0-rc.6">
   <img src="https://img.shields.io/github/stars/PerryLink/dsh-session-pin?style=flat" alt="GitHub stars">
 </p>
 
-> **把重要的会话钉在顶部。** 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的双面插件（宿主 + 浏览器）：每条会话行都有单击即用的图钉徽标——悬停时灰色、钉住后琥珀色常显——钉住的会话自动移到其工作区分组最前，且钉住状态跨重启、跨浏览器持久保存。
+> **置顶真正重要的会话——并给它们上色，让你一眼就能找到。** 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的双面（Host + 浏览器）插件，支持两级置顶（工作区与会话）、图钉后的换色按钮（给行染上强调色），并保留四个置顶入口：行悬停 [图钉][换色] 控件、会话头置顶开关、侧栏底部入口加已置顶面板，以及跨重启保留的浏览器级持久化（置顶与颜色）。
 
-## 为什么需要钉住？
+## 为什么需要置顶？
 
-会话列表按最近活动排序：你天天依赖的那场对话会慢慢沉底，每开一个新会话就把它再埋深一层。手动排序 + 拖拽虽然存在，但几乎没人发现；而"钉住的聊天还会随活动重排"正是其他编程 Agent 用户抱怨最多的问题。`dsh-session-pin` 给你一步到位的体验：
+会话列表按最近活跃排序：你整个星期都依赖的那个会话会慢慢沉底，每开一个新聊天就把它埋得更深。在 Manual 排序下拖拽行也能实现，但几乎没人发现它——而置顶会话仍会随活跃重新排序，正是其他编码助手用户抱怨的痛点。`dsh-session-pin` 提供了一键式体验，再加行颜色，让重要区域一眼可辨：
 
 ```
-┌─ 会话 ─────────────────────────────────┐
-│ 📌 实现登录流程              3小时      │  ← 已钉住：琥珀色图钉常显
-│   修复鉴权 bug              1小时      │  ← 悬停浮现灰色图钉，点击切换
-│   重构数据库层              2天        │
+┌─ Workspaces ────────────────────────────┐
+│ 🎨 Workbench            ███             │  ← 已置顶工作区，红色强调
+│   📌 Implement login flow         3h    │  ← 已置顶会话，青色强调
+│     Fix the auth bug              1h    │  ← 悬停显示灰色图钉 + 换色按钮
+│   Refactor the DB layer           2d    │
 └─────────────────────────────────────────┘
 ```
 
-## 📸 演示
-
-悬停会话行浮现灰色图钉；点击钉住——变琥珀色并置顶，刷新后依然钉住。（截图来自真实 `dsh web` 运行。）
-
-<p align="center">
-  <img src="docs/demo-hover.png" width="340" alt="悬停时的灰色图钉">
-  <img src="docs/demo-pinned.png" width="340" alt="钉住后的琥珀色图钉">
-</p>
-
 ## ✨ 功能特性
 
-- 🧷 **悬停图钉徽标** — 悬停会话行时，标题左侧浮现灰色图钉；已钉住的会话常显琥珀色图钉。单击切换，且不会误触打开会话。
-- 📌 **置顶排序** — 钉住时通过公开 RPC `workspace.insertSessionBefore` 把会话移到其工作区账户首位；核心的「手动（Manual）排序」模式下位置固定，不随活动重排。
-- 💾 **持久钉住** — 宿主半注册持久的 `session-pin` settings 命名空间，浏览器半经标准 `settings.*` RPC 写入。当前 DSH 构建的 Web 代理只服务其白名单命名空间，因此在白名单决策上移到 `settings.register()`（上游已计划）之前，浏览器半自动回退到 `localStorage`——无论如何，钉住状态在同一浏览器内刷新后依然保留。
-- 🔢 **可选上限** — `config.maxPins` 限制最大钉住数（默认 `0` = 不限），超限时拒绝并记日志。
-- 🧩 **零核心改动** — 针对官方 DSH Web GUI 的独立插件，无需打补丁的 harness。
-- 🌍 **五语文档** — English · 中文 · Español · Português · हिन्दी。
+- 🧷 **行控件** — 悬停会话行时，标题左侧淡入灰色图钉；已置顶会话保持琥珀色实心图钉。构建声明了上游行级槽位（`sessions.row.action`）时，[图钉][换色] 控件通过该槽位以权威会话 id 渲染，DOM 覆盖层完全跳过会话行——一行永远不可能出现两套图钉。没有该槽位的基线上，DOM 覆盖层按标题匹配降级渲染会话行。
+- 📂 **工作区置顶** — 工作区标题行获得同样的 [图钉][换色] 控件（上游槽位不渲染在工作区行上，由覆盖层按 Host 强制唯一的工作区名匹配）。置顶工作区会通过公开的 `workspace.insertBefore` RPC 把该工作区移到工作区列表最前。
+- 🎨 **行颜色** — 图钉后的换色按钮单击循环 8 色预设调色板（Shift+单击清除颜色）。着色的行获得左侧强调条加半透明底色——会话行与工作区行独立生效，一眼识别特定区域。颜色随置顶一起持久化，并随实体删除自动清理。
+- 📌 **会话头开关** — 会话头操作行（`conversation.session.header.actions`）内提供同一个置顶控件，以框架解析的会话 id 为键：标题重复、空白会话在这里都能正确置顶。
+- 🗂 **已置顶面板** — 侧栏底部入口打开浮动面板，按置顶时间倒序列出已置顶的工作区与会话，并显示各自的颜色圆点；点击即跳转。Esc 或点击面板外部关闭。
+- 📐 **置顶排序** — 置顶会话通过公开的 `workspace.insertSessionBefore` RPC 移到其工作区账户最前，置顶工作区移到工作区列表最前；`reorderOnLoad` 在列表就绪后重申两级置顶前缀（幂等，不会与核心自身的重排对抗）。在核心的 **Manual** 排序下位置保持不变。
+- 💾 **持久化** — Host 半注册持久化的 `session-pin` settings namespace（在支持的构建上通过 `settings.register({ expose: true })` 声明线上暴露），浏览器半通过标准 `settings.*` RPC 读取。在 Web 代理不提供插件 namespace 的构建上，浏览器半回退到带版本信封的 `localStorage` 文档（自动迁移 v1 旧格式），并通过 `storage` 事件跨标签页同步。
+- 📡 **日志支撑的写通道** — 在挂载了内置 `dsh-session-pin` 服务的构建上，每次会话切换先经 `session.setPinned` RPC 提交（`session/pin` 事件日志是规范驻留），再把提交镜像写入 settings store，使有序列表、面板与工作区重排保持一致。RPC 失败或超时自动降级为 settings 直写；下一次连接代际重新启用。当 Host 提供 `pin` 投影时，会话头开关以其为准——跨设备的提交经由投影收敛。工作区置顶与颜色是本插件的本地状态，始终直写 store。
+- 🔢 **可选上限** — `config.maxPins` 限制每个级别的置顶数量（默认 `0` = 不限）；超限时徽标上给出内联提示。
+- 🧹 **状态自愈** — `pruneStale` 在列表就绪后清除已删除/已归档工作区与会话的置顶和颜色。
+- 🌍 **界面本地化** — 徽标、换色按钮、会话头、侧栏入口与面板文案随 locale 服务提供中文与英文；无 locale 服务的组合保留英文回退。README：English · 中文 · Español · Português · हिन्दी。
+- 🧩 **零核心改动** — 独立插件，适用于原版 DSH Web GUI；每个新界面在旧基线上都能优雅降级。
 
 ## 🚀 快速开始
 
-1. **安装** — 在 profile 的 `cordis.yml` 中加入插件：
+1. **安装** — 把插件加进 profile 的 `cordis.yml`：
 
 ```yaml
 plugins:
   '@dsh-external/dsh-session-pin':
     path: /path/to/dsh-session-pin
     config:
-      maxPins: 5      # 可选；0 = 不限（默认）
+      maxPins: 5        # 可选；0 = 每个级别不限（默认）
+      reorderOnLoad: true   # 可选；加载后重申置顶顺序（默认）
+      pruneStale: true      # 可选；清除已删除实体的置顶（默认）
 ```
 
-2. **构建**（缺少浏览器端构建产物时 `dsh web` 会拒绝启动）：
+> **Loader entry id。** loader 会在整个 root include 树里对 entry id 去重。
+> 在 `dsh-base` bundle 挂载了内置 host 服务 `@deepseek-ai/dsh-session-pin`
+> （entry id 为 `session-pin`，提供日志支撑的置顶状态与 `session.setPinned`
+> RPC）的 harness 构建上，请给本插件一个不同的 entry id，例如在 profile
+> patch 行里写 `id: session-pin-ui`。重复的 `session-pin` id 会导致整个
+> 启动因 "duplicate loader entry id" 失败。插件内部的 cordis `name` 与
+> settings namespace 仍是 `session-pin`——只有 profile entry id 必须不同。
+
+2. **构建**（缺少 client 包时 Web 应用拒绝启动）：
 
 ```sh
 pnpm install
 pnpm run build      # lib/index.js + lib/client.js
 ```
 
-3. **重启** `dsh web`，悬停侧边栏任意会话行——标题左侧出现图钉徽标，点击即钉住。
+3. **重启** `dsh web`，悬停侧栏中任意行——标题左侧出现图钉徽标与换色按钮。点击置顶；单击换色按钮循环颜色，Shift+单击清除颜色；也可以在会话头再次切换；侧栏底部可打开已置顶列表。
 
-**卸载** — 从 `cordis.yml` 删除插件行并重启；如需清理，可同时删除 `settings.yaml` 中的 `session-pin` 段落，除此之外不写入任何其他位置。
+**卸载** — 从 `cordis.yml` 移除插件行并重启。`session-pin` 段同样可以从 `settings.yaml` 删除；插件不写任何其他内容。
 
-## ⚙️ 配置项
+## ⚙️ 配置
 
-| 键 | 类型 | 默认 | 含义 |
+| 键 | 类型 | 默认值 | 含义 |
 |---|---|---|---|
-| `maxPins` | 整数 | `0` | 最大钉住数；`0` = 不限。取消钉住永远不受限。 |
+| `maxPins` | integer | `0` | 每个级别的置顶数上限（会话与工作区各有独立额度）；`0` = 不限。取消置顶始终可用。 |
+| `reorderOnLoad` | boolean | `true` | 会话/工作区列表就绪后及工作区变化时重申置顶前缀（新置顶在前）。 |
+| `pruneStale` | boolean | `true` | 清除已就绪列表中缺席（已删除/已归档）实体的置顶与颜色。 |
 
-## 🧠 实现原理
+## 🧠 工作原理
 
-- **宿主半**（`src/index.ts`）— 注册 `session-pin` settings 命名空间（`{ pinned: string[], maxPins }`）。不产生会话事件、不产生模型流量。
-- **浏览器半**（`src/client.ts`）— 通过 `ctx.settingsScope` 绑定命名空间，覆层渲染图钉徽标，通过 `ctx.workspaces` 排序；`MutationObserver` 在 React 重渲染后幂等重挂徽标（会话行暂无第三方行内扩展槽位，按 `[role="treeitem"][aria-selected]` + 标题文本定位）。
-- **构建** — esbuild 输出宿主 ESM 半与包裹成 web boot 工厂格式（`window.__ModuleLoader__.load({ id, factory })`）的客户端 CJS 半，并带纯度门：任何 `@deepseek-ai/*` 值导入漏进浏览器包即构建失败。
+- **Host 半**（`src/index.ts`）— 注册 `session-pin` settings namespace（`{ pinned, workspacePinned, colors, workspaceColors, maxPins, reorderOnLoad, pruneStale }`），策略随组合 base 层下发。无会话事件、无模型流量。
+- **浏览器半**（`src/client.ts`）— 组装无框架依赖的 `PinStore`（settings 传输，降级为带版本信封的 `localStorage` 文档并跨标签页同步）、`PinController`（两级切换 / 换色 / 剪枝 / 重排状态机）与 UI：行覆盖层（工作区行始终覆盖；会话行仅在上游行槽位未声明时覆盖）、可选的行槽位注册、会话头开关、侧栏底部入口与覆盖层面板。排序走 `ctx.workspaces`；行着色是纯 CSS（以换色按钮的 `data-color` 类为键的 `:has()` 规则）。
+- **构建** — esbuild 产出 Host ESM 半与包裹在 Web 引导工厂（`window.__ModuleLoader__.load({ id, factory })`）中的 client CJS 半；`react` 外置到模块表种子词，包内渲染使用外壳自身的 React。纯净门禁保证任何 `@deepseek-ai/*` 值导入都无法进入浏览器包。
 
-**使用的扩展点**：`settings`（宿主）；`sessions` / `workspaces` / `settingsScope` / `connection` / `remote`（客户端）。**模型可见效果：无** — 纯 UI 插件：不新增会话事件，不给任何模型请求增加 token。
+**使用的扩展点：** `settings`（Host）；`sessions`、`workspaces`、`settingsScope`、`connection`、`remote`、`slots`（client）；`locale`（client，可选）；`conversation.session.header.actions`、`sidebar.footer.action`、`shell.overlay`，以及上游声明时的 `sessions.row.action` 行槽位。**模型可见影响：无** — 这是纯 UI 插件：不新增会话事件，不给任何模型请求增加 token。
 
 ## 📦 兼容性
 
 | 层 | 基线 |
 |---|---|
-| DeepSeek Harness | snapshot 0812 / npm `@deepseek-ai/dsh@0.1.0-rc.6` 世代（客户端包 `0.1.0-rc.6`） |
+| DeepSeek Harness | npm `@deepseek-ai/dsh@0.1.0-rc.6` 代（client 包 `0.1.0-rc.6`）；更新的构建自动启用行槽位、线上暴露 settings 与 `session/pin` 投影 |
 | Cordis peer | `@deepseek-ai/cordis: ^4.0.1` |
 | Node（开发） | ≥ 22 |
+| 浏览器 | 现代 Chromium/Firefox/Safari；行着色需要 CSS `:has()`（Chrome 105+、Firefox 121+、Safari 15.4+）——旧浏览器仍显示换色圆点，只是没有行底色 |
 
 ## 🧪 开发
 
 ```sh
 pnpm install
 pnpm run typecheck  # tsc --noEmit
-pnpm run test       # vitest 单测
-pnpm run build      # 双半构建 + 客户端包纯度检查
+pnpm run test       # vitest 单测（pin-core、store、controller、overlay、host 注册）
+pnpm run build      # 双半构建 + client 包纯净门禁
+node scripts/verify-live.mjs   # 针对运行中的 `dsh web` 实测（DSH_CHECKOUT 环境变量）
 ```
 
 ## 🗺️ 路线图
 
-- 右键 / 行菜单「钉住」入口（需要核心行内槽位或菜单覆层）。
-- 侧边栏顶部的独立 **Pinned 分区**（Slack Starred 式）——Cursor、Claude、Slack、Notion、Telegram 最终都收敛到"独立钉住区块"这一形态。
-- 规范化居所：日志级 `session/pin` 事件（`session/title` 模式），待插件可读的投影通道可用后迁移。
+- 右键 / 行菜单「置顶」入口（需要核心行级菜单槽位；行徽标槽位已在上游落地）。
+- 规范驻留：日志支撑的 `session/pin` 事件 + `pin` 投影 + 写 RPC（上游）——届时 settings namespace 退役为持久层，插件改用 `useProjection('pin')`。
+- 规范驻留落地后的完整取色器弹层（自定义颜色）；当前的循环换色按钮已覆盖预设调色板。
 
 ## ⚠️ 已知限制
 
-- **持久化范围** — 当前 DSH 基线中 `session-pin` 命名空间不在 Web 代理的服务白名单里，浏览器半将钉住集合存于 `localStorage`（浏览器本地），待上游开放插件命名空间后自动升级为宿主持久。宿主侧命名空间注册已就位。
-- **排序范围** — 钉住位置仅在「手动（Manual）排序」下稳定；「最近更新（Updated）」模式下核心的活动晋升会重排。Ungrouped 与扁平列表视图没有宿主账户，位置不持久（徽标与钉住状态本身仍生效）。
-- **远程浏览器** — settings RPC 仅限 loopback，远程浏览器回退到浏览器本地 `localStorage`。
-- **同标题会话** — 按标题文本匹配，标题重复时徽标出现在所有同名行，切换作用于第一个匹配（外观级限制）。
-- **行 DOM 依赖** — 覆层依赖核心会话行的 `role="treeitem"` / `aria-selected` 结构，需随上游 UI 改版跟进。
+- **持久化范围** — 在 Web 代理不提供插件 settings namespace 的构建上，浏览器半把置顶与颜色存进带版本信封的 `localStorage`（仅本浏览器），直到上游暴露该 namespace（更新构建上通过 `settings.register({ expose: true })` 声明）。Host 侧注册已就位，暴露后自动成为持久层。
+- **排序范围** — 置顶位置仅在 **Manual** 排序下稳定；**Updated** 排序下核心的活动提升会重排活跃会话，`reorderOnLoad` 在加载与工作区变化时重申前缀。未分组与平铺视图没有 Host 侧账户，会话位置不持久化（徽标、颜色与置顶状态仍可用）。工作区顺序通过注册表显示顺序持久化。
+- **远程浏览器** — 基线上 settings RPC 仅限回环；远程浏览器回退到浏览器本地的 `localStorage`。
+- **行徽标降级** — 上游行槽位不可用时，会话行按标题文本匹配；标题重复时每个匹配行都显示徽标且只切换第一个匹配（外观性问题）。会话头开关始终按 id 工作，不受影响。有槽位的构建上，会话行只经槽位渲染——不存在降级路径造成的重复图钉。
+- **工作区行匹配** — 工作区控件按名称匹配（Host 强制唯一）；重命名后自动跟随。未分组桶与搜索结果行有意不渲染控件。
+- **行 DOM 依赖** — 覆盖层依赖核心行的 `role="treeitem"` / `aria-selected` / `aria-expanded` 结构，需跟随上游 UI 变更。
 
 ## 🌐 社区
 
-- [DeepSeek Harness Discord](https://discord.gg/Ycq5dCaS4) · [官方讨论区](https://github.com/deepseek-ai/deepseek-harness/discussions)
-- 在 [`dsh-plugin` 话题页](https://github.com/topics/dsh-plugin)发现更多插件。
+- [DeepSeek Harness Discord](https://discord.gg/Ycq5dCaS4) · [官方讨论](https://github.com/deepseek-ai/deepseek-harness/discussions)
+- 在 [`dsh-plugin` 主题](https://github.com/topics/dsh-plugin)发现更多插件。
+
+## 👥 贡献者
+
+感谢每一位参与塑造这个插件的人：
+
+- [**PerryLink**](https://github.com/PerryLink) — 创建者与维护者：置顶交互、持久化、工作区排序、按置顶行颜色、五语言文档与社区工程（v0.1.0 → v0.3.0）。
+
+_欢迎贡献——开一个 [issue](https://github.com/PerryLink/dsh-session-pin/issues) 或在 [discussions](https://github.com/PerryLink/dsh-session-pin/discussions) 发起讨论。_
 
 ## 📜 许可证
 
-Apache License 2.0 — 详见 [LICENSE](LICENSE)。Copyright © 2026 dsh-session-pin contributors。
+Apache License 2.0 — 见 [LICENSE](LICENSE)。Copyright © 2026 dsh-session-pin contributors.
