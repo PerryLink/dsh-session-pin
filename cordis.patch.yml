@@ -1,0 +1,7 @@
+# dsh-session-pin bundle patch: mount the dual-face session pinning plugin.
+# `name` is the package name, resolved through the profile's node_modules.
+# The client half loads immediately (platform: web) and reads everything
+# through the `session-pin` settings namespace registered by the host half.
+- insert:
+    - id: session-pin
+      name: dsh-session-pin
