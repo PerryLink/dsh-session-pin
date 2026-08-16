@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-08-16
+
+### Added
+
+- **Bundle manifest**: `package.json` now declares a complete `dsh.bundle` manifest (`cordis.patch.yml` shipped in `files`), so the plugin installs with one command — `dsh plugin --profile <profile> add dsh-session-pin` — instead of a manual `cordis.yml` row.
+- **Plugin Family cross-links**: the READMEs (English / 中文) now link the full PerryLink DSH plugin family.
+
 ## [0.3.0] - 2026-08-15
 
 ### Added
