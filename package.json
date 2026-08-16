@@ -2,6 +2,44 @@
   "name": "dsh-session-pin",
   "version": "0.4.0",
   "description": "Pin sessions and workspaces to the top of the DeepSeek Harness sidebar with per-pin row colors — a dual-face (host + client) dsh plugin with row [pin][swatch] controls, a header toggle, and a pinned panel.",
+  "dshWorkshop": {
+    "schema": "omdsh-workshop-package/v1",
+    "type": "plugin",
+    "integration": {
+      "protocol": "harness-profile",
+      "artifact": "cordis.patch.yml"
+    },
+    "install": {
+      "mode": "transactional",
+      "adapter": "profile-bundle",
+      "failurePolicy": "generation-rollback",
+      "touchesCurrentBeforeActivation": false
+    },
+    "lifecycle": {
+      "activation": "restart-plugin",
+      "dispose": "supported"
+    },
+    "permissions": [
+      "browser:local-storage",
+      "settings:read",
+      "settings:write"
+    ],
+    "compatibility": {
+      "dshVersions": ["0.1.0-rc.6"]
+    },
+    "capability": {
+      "id": "session-pin-toggle",
+      "kind": "ui",
+      "invocation": "click the pushpin on a session row",
+      "expected": "the session joins the pinned set and moves to the front of its workspace account"
+    },
+    "evidence": {
+      "install": null,
+      "failureIsolation": null,
+      "hotReload": null,
+      "remove": null
+    }
+  },
   "keywords": [
     "deepseek-harness",
     "dsh",
