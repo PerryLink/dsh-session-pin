@@ -90,7 +90,15 @@ pnpm run build      # lib/index.js + lib/client.js
 | `maxPins` | entero | `0` | Máximo de entidades fijadas por nivel (las sesiones y los espacios de trabajo tienen su propio presupuesto); `0` = ilimitado. Desfijar siempre funciona. |
 | `reorderOnLoad` | booleano | `true` | Reafirma los prefijos de fijados (el pin más reciente primero) una vez que las listas de sesiones/espacios de trabajo están listas y en cambios del espacio de trabajo. |
 | `pruneStale` | booleano | `true` | Elimina pines y colores de entidades ausentes de una lista ya preparada (borradas/archivadas). |
+| `enableBoards` | boolean | `true` | Habilita los grupos de pines (boards) en el panel lateral. |
+| `enableTags` | boolean | `true` | Habilita las etiquetas de sesión/espacio de trabajo y la barra de filtros del panel. |
+| `enableViews` | boolean | `true` | Habilita las vistas de filtro guardadas. |
+| `enableHealth` | boolean | `true` | Habilita el resumen de salud por sesión pineada (solo lectura, saneado). |
+| `enableGoto` | boolean | `true` | Habilita el comando `/goto <palabra>` del compositor. |
 
+## 🧭 Organizador de navegación
+
+Sobre el pineado: **boards** (los pines se agrupan con nombre; el panel muestra chips que filtran por grupo), **etiquetas y vistas guardadas** (hasta 8 etiquetas por entidad; la barra filtra por texto y etiqueta, y cualquier filtro se guarda como vista con un clic), **resumen de salud** (cada fila de sesión pineada muestra una línea saneada y de solo lectura — nº de mensajes, dirección del último, tiempo relativo — derivada de la instantánea pública de la sesión; solo conteos y direcciones, nunca contenido) y **`/goto <palabra>`** (una línea del compositor que empiece por `/goto` y Enter salta: coincidencia única abre, varias listan, ninguna lo explica; la línea de comando nunca llega al modelo). Todo el estado queda local en el navegador.
 ## 🧠 Cómo funciona
 
 - **Mitad host** (`src/index.ts`) — registra el namespace de ajustes `session-pin` (`{ pinned, workspacePinned, colors, workspaceColors, maxPins, reorderOnLoad, pruneStale }`), con la política aplicada en la capa base de composición. Sin eventos de sesión, sin tráfico de modelo.

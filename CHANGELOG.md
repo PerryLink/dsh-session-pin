@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-08-16
+
+### Added
+
+- **Pin groups (boards)**: pins join named groups (`pin.createBoard` / `pin.assignBoard` / `pin.removeBoard`); the pinned panel shows board chips that filter to one group (plus "All"). Boards persist per-browser with the pins (store envelope v3; v1/v2 documents migrate forward).
+- **Session tags & saved views**: entities carry up to 8 tags (≤24 chars); the panel's filter bar matches text (case-insensitive title substring) and tags, and any filter state saves as a named view (up to 20, one-click restore).
+- **Session health summary**: each pinned session row shows a read-only, sanitized health line (`N msgs · you|ai · relative time`) derived from the public session snapshot — counts and directions only, never content, zero network.
+- **`/goto <keyword>`**: a composer line starting with `/goto` plus Enter jumps to the matching session (unique hit opens, multiple hits list, no hit explains); the command line is never sent to the model.
+- Five Config switches (`enableBoards` / `enableTags` / `enableViews` / `enableHealth` / `enableGoto`, default true) and matching settings-namespace fields; `src/navigator.ts` holds the pure organizer logic (boards/tags/views/filter/health/goto/sanitize) with unit coverage.
+
+### Changed
+
+- Pin, color, and the four pin surfaces are fully unchanged (0.3.x compatible); the store envelope moves v2 → v3 with forward migration.
+- Five-language READMEs: navigation-organizer section and the five new Config rows; test count updated to 87.
+
 ## [0.3.1] - 2026-08-16
 
 ### Added

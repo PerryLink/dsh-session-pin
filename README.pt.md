@@ -90,7 +90,15 @@ pnpm run build      # lib/index.js + lib/client.js
 | `maxPins` | inteiro | `0` | Máximo de entidades fixadas por nível (sessões e espaços de trabalho têm orçamento próprio); `0` = ilimitado. Desafixar sempre funciona. |
 | `reorderOnLoad` | booleano | `true` | Reafirma os prefixos de fixados (pin mais recente primeiro) assim que as listas de sessões/espaços de trabalho ficam prontas e em mudanças do espaço de trabalho. |
 | `pruneStale` | booleano | `true` | Remove pins e cores de entidades ausentes de uma lista pronta (excluídas/arquivadas). |
+| `enableBoards` | boolean | `true` | Ativa os grupos de pins (boards) no painel lateral. |
+| `enableTags` | boolean | `true` | Ativa as tags de sessão/workspace e a barra de filtros do painel. |
+| `enableViews` | boolean | `true` | Ativa as vistas de filtro salvas. |
+| `enableHealth` | boolean | `true` | Ativa o resumo de saúde por sessão fixada (somente leitura, higienizado). |
+| `enableGoto` | boolean | `true` | Ativa o comando `/goto <palavra>` do compositor. |
 
+## 🧭 Organizador de navegação
+
+Sobre a fixação: **boards** (pins em grupos nomeados; o painel mostra chips que filtram por grupo), **tags e vistas salvas** (até 8 tags por entidade; a barra filtra por texto e tag, e qualquer filtro é salvo como vista com um clique), **resumo de saúde** (cada linha de sessão fixada mostra uma linha higienizada e somente leitura — nº de mensagens, direção da última, tempo relativo — derivada da snapshot pública da sessão; apenas contagens e direções, nunca conteúdo) e **`/goto <palavra>`** (uma linha do compositor começando com `/goto` + Enter pula: correspondência única abre, várias listam, nenhuma explica; a linha de comando nunca chega ao modelo). Todo o estado fica local no navegador.
 ## 🧠 Como funciona
 
 - **Metade host** (`src/index.ts`) — registra o namespace de settings `session-pin` (`{ pinned, workspacePinned, colors, workspaceColors, maxPins, reorderOnLoad, pruneStale }`), com a política aplicada na camada base de composição. Sem eventos de sessão, sem tráfego de modelo.

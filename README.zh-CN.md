@@ -94,7 +94,15 @@ pnpm run build      # lib/index.js + lib/client.js
 | `maxPins` | integer | `0` | 每个级别的置顶数上限（会话与工作区各有独立额度）；`0` = 不限。取消置顶始终可用。 |
 | `reorderOnLoad` | boolean | `true` | 会话/工作区列表就绪后及工作区变化时重申置顶前缀（新置顶在前）。 |
 | `pruneStale` | boolean | `true` | 清除已就绪列表中缺席（已删除/已归档）实体的置顶与颜色。 |
+| `enableBoards` | boolean | `true` | 在侧栏面板启用 Pin 分组（boards）。 |
+| `enableTags` | boolean | `true` | 启用会话/工作区标签与面板过滤栏。 |
+| `enableViews` | boolean | `true` | 启用保存的过滤视图。 |
+| `enableHealth` | boolean | `true` | 启用每个 pin 会话的健康摘要（只读、脱敏）。 |
+| `enableGoto` | boolean | `true` | 启用 `/goto <关键词>` 作曲器命令。 |
 
+## 🧭 导航组织器
+
+置顶之上，四个浏览器本地能力组织多会话工作（全部状态存同一 `session-pin` store，绝不上传；每个能力都有上述 Config 开关）：**boards**（Pin 归入命名分组，面板分组芯片过滤）、**标签与视图**（实体最多 8 个标签；过滤栏按文本与标签过滤，任意过滤状态可存为命名视图一键切换）、**健康摘要**（每个 pin 会话行追加脱敏健康行：消息数、最后方向、相对时间——只读公共会话快照、只显示计数与方向、绝不显示内容）、**`/goto <关键词>`**（作曲器输入该行并回车：唯一命中直接打开会话，多命中列出选择，无命中说明；命令绝不发送给模型）。
 ## 🧠 工作原理
 
 - **Host 半**（`src/index.ts`）— 注册 `session-pin` settings namespace（`{ pinned, workspacePinned, colors, workspaceColors, maxPins, reorderOnLoad, pruneStale }`），策略随组合 base 层下发。无会话事件、无模型流量。

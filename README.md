@@ -44,6 +44,10 @@ Session lists sort by recency: the conversation you rely on all week slowly sink
 - 💾 **Persistent pinning** — the host half registers the durable `session-pin` settings namespace (declared wire-exposed via `settings.register({ expose: true })` on builds that support it); the browser half reads through the standard `settings.*` RPCs. On builds whose web proxy does not serve plugin namespaces the browser half falls back to a versioned `localStorage` document (v1 documents migrate), with cross-tab sync through `storage` events.
 - 📡 **Log-backed write channel** — on builds mounting the built-in `dsh-session-pin` service, every session toggle commits through the `session.setPinned` RPC first (the `session/pin` event log is the canonical residence) and mirrors the commit into the settings store, so the ordered list, panel, and reordering stay consistent. A failed or slow RPC degrades to a direct settings write; the next connection generation re-enables it. The session-header toggle reads the `pin` projection when the host serves it — cross-device commits converge through it. Workspace pins and colors are plugin-local state and always write to the store.
 - 🔢 **Optional limit** — `config.maxPins` caps the pinned count per level (default `0` = unlimited); exceeding it shows an inline limit hint on the badge.
+- 🧭 **Pin groups (boards)** — pins can join named groups ("本周发布", "研究"); the pinned panel shows board chips that filter to one group, with an "All" reset. Boards persist like pins (per-browser) and survive reloads.
+- 🏷 **Tags & saved views** — tag sessions and workspaces; the panel's filter bar filters by text and tag, and any filter state saves as a named view for one-click switching (up to 20 views).
+- ❤️ **Health summary** — each pinned session row shows a read-only, sanitized health line (message count, last direction, relative activity) derived from the public session snapshot; nothing is written and nothing leaves the browser.
+- 🔎 **`/goto <keyword>`** — type `/goto` plus a keyword in the composer and press Enter: a unique title/tag match opens the session, multiple matches list, no match explains. The plugin never sends the command line.
 - 🧹 **Self-healing state** — `pruneStale` drops pins and colors whose workspaces/sessions were deleted or archived once the lists are ready.
 - 🌍 **Localized UI** — badge, swatch, header, foot, and panel copy ship in 中文 and English through the locale service; compositions without it keep the English fallback. Readmes: English · 中文 · Español · Português · हिन्दी.
 - 🧩 **Zero core changes** — a standalone plugin for the stock DSH Web GUI; every new surface degrades gracefully on older baselines.
@@ -96,6 +100,20 @@ pnpm run build      # lib/index.js + lib/client.js
 | `maxPins` | integer | `0` | Maximum pinned entities per level (sessions and workspaces each have their own budget); `0` = unlimited. Unpinning always works. |
 | `reorderOnLoad` | boolean | `true` | Re-assert the pinned prefixes (newest pin first) once the session/workspace lists are ready and on workspace changes. |
 | `pruneStale` | boolean | `true` | Drop pins and colors for entities absent from a ready list (deleted/archived). |
+| `enableBoards` | boolean | `true` | Enable pin groups (boards) in the sidebar panel. |
+| `enableTags` | boolean | `true` | Enable session/workspace tags and the panel filter bar. |
+| `enableViews` | boolean | `true` | Enable saved filter views. |
+| `enableHealth` | boolean | `true` | Enable the per-pinned-session health summary (read-only, sanitized). |
+| `enableGoto` | boolean | `true` | Enable the `/goto <keyword>` composer command. |
+
+## 🧭 Navigation organizer
+
+On top of pinning, four browser-local capabilities organize multi-session work. All state rides the same `session-pin` store (per-browser; nothing is uploaded), and each feature has a Config switch above.
+
+- **Boards** — pins join named groups; the panel shows one chip per board (plus "All") that filters the list. Create boards and move pins through the controller API (`pin.createBoard`, `pin.assignBoard`) or the panel chips.
+- **Tags & views** — entities carry up to 8 tags (≤24 chars each); the filter bar matches text (case-insensitive substring over titles) and tags; any filter state saves as a named view (`+ view` chip) and restores in one click.
+- **Health summary** — each pinned session row appends a sanitized line: `N msgs · you|ai · relative time`, derived read-only from the public session snapshot (`kind`/`time` of finalized messages). Counts and directions only — never content.
+- **`/goto`** — a composer line starting with `/goto <keyword>` and Enter jumps: one title/tag match opens it, several list in a prompt, none explains. The Enter is consumed — the command line never reaches the model. (Matches the official sidebar's own quick-jump without replacing it; see the boundary note in Known limitations.)
 
 ## 🧠 How it works
 
