@@ -27,6 +27,9 @@ function harness(initial: {
   maxPins?: number
   reorderOnLoad?: boolean
   pruneStale?: boolean
+  boards?: { byId: Record<string, { name: string; order: number }>; membership: Record<string, string> }
+  tags?: Record<string, string[]>
+  views?: Array<{ id: string; name: string; text: string; tags: string[]; board?: string }>
 } = {}, remote?: {
   remote: PinRemoteLike
   calls: Array<{ id: string; pinned: boolean }>
@@ -40,6 +43,9 @@ function harness(initial: {
     workspacePinned: initial.workspacePinned ?? [],
     colors: initial.colors ?? {},
     workspaceColors: initial.workspaceColors ?? {},
+    boards: initial.boards ?? { byId: {}, membership: {} },
+    tags: initial.tags ?? {},
+    views: initial.views ?? [],
   }
   let listPhase = 'pending'
   let listIds: readonly string[] = []
@@ -52,6 +58,11 @@ function harness(initial: {
       maxPins: initial.maxPins ?? 0,
       reorderOnLoad: initial.reorderOnLoad ?? true,
       pruneStale: initial.pruneStale ?? true,
+      enableBoards: true,
+      enableTags: true,
+      enableViews: true,
+      enableHealth: true,
+      enableGoto: true,
     }),
     write: async (section) => {
       writeCalls.push({ ...section })

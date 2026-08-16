@@ -31,12 +31,27 @@ export type Config = {
   reorderOnLoad: boolean
   /** Drop pins/colors for entities absent from a ready list (deleted/archived). */
   pruneStale: boolean
+  /** Enable pin groups (boards) in the sidebar. */
+  enableBoards: boolean
+  /** Enable session/workspace tags and the sidebar filter bar. */
+  enableTags: boolean
+  /** Enable saved filter views. */
+  enableViews: boolean
+  /** Enable the per-pinned-session health summary (read-only, sanitized). */
+  enableHealth: boolean
+  /** Enable the `/goto <keyword>` composer command (fuzzy title/tag jump). */
+  enableGoto: boolean
 }
 
 export const Config: z<Config> = z.object({
   maxPins: z.number().step(1).min(0).default(0),
   reorderOnLoad: z.boolean().default(true),
   pruneStale: z.boolean().default(true),
+  enableBoards: z.boolean().default(true),
+  enableTags: z.boolean().default(true),
+  enableViews: z.boolean().default(true),
+  enableHealth: z.boolean().default(true),
+  enableGoto: z.boolean().default(true),
 })
 
 /** User-layer pin document shape mirrored by the browser half. */
@@ -49,21 +64,35 @@ export interface PinUserLayer {
   colors: Record<string, string>
   /** Workspace id → preset palette color. */
   workspaceColors: Record<string, string>
+  /** Pin groups (boards) and their membership. */
+  boards: Record<string, unknown>
+  /** Session/workspace id → tags. */
+  tags: Record<string, string[]>
+  /** Saved filter views. */
+  views: Array<Record<string, unknown>>
 }
 
 /**
  * Namespace schema: the two ordered pinned id lists (newest pin first), the
- * two row-color maps, and the host policy mirrored into the user-editable
- * section defaults.
+ * two row-color maps, the navigator metadata (boards/tags/views), and the
+ * host policy mirrored into the user-editable section defaults.
  */
 const PinSchema = z.object({
   pinned: z.array(z.string()).default([]),
   workspacePinned: z.array(z.string()).default([]),
   colors: z.dict(z.string()).default({}),
   workspaceColors: z.dict(z.string()).default({}),
+  boards: z.any().default({}),
+  tags: z.dict(z.array(z.string())).default({}),
+  views: z.array(z.any()).default([]),
   maxPins: z.number().step(1).min(0).default(0),
   reorderOnLoad: z.boolean().default(true),
   pruneStale: z.boolean().default(true),
+  enableBoards: z.boolean().default(true),
+  enableTags: z.boolean().default(true),
+  enableViews: z.boolean().default(true),
+  enableHealth: z.boolean().default(true),
+  enableGoto: z.boolean().default(true),
 })
 
 /**
@@ -84,12 +113,20 @@ export function apply(ctx: Context, config: Config): void {
       workspacePinned: [],
       colors: {},
       workspaceColors: {},
+      boards: {},
+      tags: {},
+      views: [],
       maxPins: config.maxPins,
       reorderOnLoad: config.reorderOnLoad,
       pruneStale: config.pruneStale,
+      enableBoards: config.enableBoards,
+      enableTags: config.enableTags,
+      enableViews: config.enableViews,
+      enableHealth: config.enableHealth,
+      enableGoto: config.enableGoto,
     },
     applies: 'live' as const,
     expose: true,
-  } as unknown as SettingsRegisterOptions<PinUserLayer & { maxPins: number; reorderOnLoad: boolean; pruneStale: boolean }>
+  } as unknown as SettingsRegisterOptions<Record<string, unknown>>
   ctx.settings.register(settingsNamespace('session-pin'), PinSchema, options)
 }

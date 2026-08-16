@@ -26,6 +26,8 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { PinController } from './pin-controller.ts'
 import { reorderMoves, topAnchor } from './pin-core.ts'
 import { createPinStore, type PinSection, type StorageEventsLike, type StorageLike } from './pin-store.ts'
+import { mountNavigator } from './nav-ui.ts'
+import type { HealthEventFace } from './navigator.ts'
 import type { PinRemoteLike, PinTranslate, SessionListFace, WorkspaceListFace } from './faces.ts'
 import { LOCALE_DICTS, LOCALE_NS, fallbackTranslate } from './locales.ts'
 import { mountOverlay, type OverlayDoc } from './overlay.ts'
@@ -257,6 +259,29 @@ export function apply(ctx: Context): void {
   const controller = new PinController(store, sessionsFace, workspacePinSource, reorderer, remote)
   const ui = createPinUiState()
 
+  // Navigation organizer feeds: per-session health from the public session
+  // snapshots (read-only, sanitized at render) and `/goto` candidates from
+  // the listed sessions plus the plugin's own tags.
+  const navSnapshot = store.read()
+  const healthSource = {
+    healthFor: (id: string): readonly HealthEventFace[] | undefined => {
+      const binding = ctx.sessions.binding(id as SessionId)
+      const nodes = binding?.session.getSnapshot().nodes as ReadonlyArray<{ kind?: string; time?: number }> | undefined
+      if (nodes === undefined) return undefined
+      return nodes.map((node) => ({
+        type: node.kind === 'user' ? 'user/message' : node.kind === 'assistant' ? 'assistant/message' : node.kind ?? 'unknown',
+        time: node.time ?? 0,
+      }))
+    },
+  }
+  const gotoSource = {
+    entries: () => {
+      const snapshot = sessionsFace.getSnapshot()
+      const tags = controller.getTags()
+      return snapshot.ids.map(id => ({ id, name: snapshot.byId[id]?.displayTitle ?? id, tags: tags[id] ?? [] }))
+    },
+  }
+
   // Optional locale service: bind the plugin namespace when the composition
   // ships one; the fallback keeps English without it. The holder indirection
   // keeps slot inject faces stable while the binding upgrades live.
@@ -326,7 +351,23 @@ export function apply(ctx: Context): void {
     const disposeWorkspaces = ctx.workspaces.list.subscribe(() => {
       controller.reapplyOrder()
     })
+    const disposeNav = mountNavigator({
+      pin: controller,
+      options: {
+        enableBoards: navSnapshot.enableBoards,
+        enableTags: navSnapshot.enableTags,
+        enableViews: navSnapshot.enableViews,
+        enableHealth: navSnapshot.enableHealth,
+        enableGoto: navSnapshot.enableGoto,
+      },
+      health: healthSource,
+      goto: gotoSource,
+      openSession: id => {
+        ctx.sessions.open(id as SessionId)
+      },
+    })
     return () => {
+      disposeNav()
       disposeWorkspaces()
       disposeSlots()
       disposeOverlay()
@@ -335,5 +376,5 @@ export function apply(ctx: Context): void {
       controller.stop()
       styleTag.remove()
     }
-  }, 'session-pin: pin store, badges, and slots')
+  }, 'session-pin: pin store, badges, slots, and navigation organizer')
 }

@@ -111,6 +111,9 @@ function pinFace(initial: {
         state = { ...state, workspaceColors: Object.fromEntries(Object.entries(state.workspaceColors).filter(([key]) => key !== id)) }
         notify()
       },
+      getBoards: () => ({ byId: {}, membership: {} }),
+      getTags: () => ({}),
+      getViews: () => [],
       subscribe: (listener) => {
         listeners.add(listener)
         return () => {

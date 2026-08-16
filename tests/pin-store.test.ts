@@ -99,7 +99,9 @@ describe('createPinStore', () => {
       workspacePinned: ['w1'],
       colors: { a: PIN_COLOR_PALETTE[0] },
       workspaceColors: { w1: PIN_COLOR_PALETTE[3] },
+      boards: { byId: {}, membership: {} }, tags: {}, views: [],
       local: false, maxPins: 3, reorderOnLoad: false, pruneStale: false,
+      enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
     })
   })
 
@@ -109,7 +111,9 @@ describe('createPinStore', () => {
     const store = createPinStore(scope, storage, events)
     expect(store.read()).toEqual({
       pinned: ['a'], workspacePinned: [], colors: {}, workspaceColors: {},
+      boards: { byId: {}, membership: {} }, tags: {}, views: [],
       local: false, maxPins: 0, reorderOnLoad: true, pruneStale: true,
+      enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
     })
   })
 
@@ -121,6 +125,7 @@ describe('createPinStore', () => {
     const store = createPinStore(scope, storage, events)
     expect(store.read()).toEqual({
       ...emptyStoredPins(), pinned: ['x'], local: true, maxPins: 0, reorderOnLoad: true, pruneStale: true,
+      enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
     })
   })
 
@@ -133,7 +138,7 @@ describe('createPinStore', () => {
     expect(store.read().colors).toEqual({})
   })
 
-  it('writes the v2 envelope in local mode and merges partial writes', () => {
+  it('writes the v3 envelope in local mode and merges partial writes', () => {
     const { scope } = scopeDouble({ status: 'unavailable' })
     const { storage, events } = storageDouble({
       [STORAGE_KEY]: JSON.stringify({ v: 2, ...emptyStoredPins(), pinned: ['a'], colors: { a: PIN_COLOR_PALETTE[0] } }),
@@ -142,11 +147,11 @@ describe('createPinStore', () => {
     void store.write({ workspacePinned: ['w'], colors: { a: PIN_COLOR_PALETTE[5] } })
     const doc = JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}') as unknown
     expect(doc).toEqual({
-      v: 2,
+      ...emptyStoredPins(),
+      v: 3,
       pinned: ['a'],
       workspacePinned: ['w'],
       colors: { a: PIN_COLOR_PALETTE[5] },
-      workspaceColors: {},
     })
   })
 
@@ -188,6 +193,7 @@ describe('createPinStore', () => {
     set({ mode: 'host', status: 'ready', value: { pinned: ['host'], maxPins: 2 } })
     expect(store.read()).toEqual({
       ...emptyStoredPins(), pinned: ['host'], local: false, maxPins: 2, reorderOnLoad: true, pruneStale: true,
+      enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
     })
   })
 })

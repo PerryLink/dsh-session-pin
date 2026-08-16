@@ -21,6 +21,10 @@
  * @module dsh-session-pin/pin-controller
  */
 import { nextPaletteColor, normalizePins, pruneColors, prunePins } from './pin-core.ts'
+import {
+  assignPinToBoard, removeBoard, saveView, setEntityTags, upsertBoard,
+  type BoardRegistry, type SavedView,
+} from './navigator.ts'
 import type { PinRemoteLike } from './faces.ts'
 import type { PinStore, PinStoreSnapshot } from './pin-store.ts'
 
@@ -158,6 +162,71 @@ export class PinController {
   /** Stored row color of one workspace, or undefined. */
   getWorkspaceColor(id: string): string | undefined {
     return this.snapshot.workspaceColors[id]
+  }
+
+  // ── Navigation organizer (boards / tags / views) ────────────────────────
+
+  /** The board registry (pin groups + membership). */
+  getBoards(): BoardRegistry {
+    return this.snapshot.boards
+  }
+
+  /** The id → tags map. */
+  getTags(): Record<string, string[]> {
+    return this.snapshot.tags
+  }
+
+  /** The saved filter views, newest last. */
+  getViews(): readonly SavedView[] {
+    return this.snapshot.views
+  }
+
+  /** Create a board (or rename when the id exists) and persist.
+   * @param id - stable board id.
+   * @param name - display name.
+   */
+  async createBoard(id: string, name: string): Promise<void> {
+    const boards = upsertBoard(this.snapshot.boards, id, name)
+    await this.store.write({ boards })
+    this.adopt({ boards })
+  }
+
+  /** Remove a board; its pins fall back to the ungrouped section.
+   * @param id - board id.
+   */
+  async removeBoard(id: string): Promise<void> {
+    const boards = removeBoard(this.snapshot.boards, id)
+    await this.store.write({ boards })
+    this.adopt({ boards })
+  }
+
+  /** Assign one pinned entity to a board ('' ungroups).
+   * @param pinId - session or workspace id.
+   * @param boardId - board id or ''.
+   */
+  async assignBoard(pinId: string, boardId: string): Promise<void> {
+    const boards = assignPinToBoard(this.snapshot.boards, pinId, boardId)
+    await this.store.write({ boards })
+    this.adopt({ boards })
+  }
+
+  /** Set one entity's tags (empty list removes the entry).
+   * @param id - session or workspace id.
+   * @param tags - next tags.
+   */
+  async setTags(id: string, tags: readonly string[]): Promise<void> {
+    const next = setEntityTags(this.snapshot.tags, id, tags)
+    await this.store.write({ tags: next })
+    this.adopt({ tags: next })
+  }
+
+  /** Save a filter view (same id replaces; the list caps at MAX_VIEWS).
+   * @param view - the view to save.
+   */
+  async saveView(view: SavedView): Promise<void> {
+    const views = saveView(this.snapshot.views, view)
+    await this.store.write({ views })
+    this.adopt({ views })
   }
 
   /**
@@ -344,6 +413,9 @@ export class PinController {
     if (partial.workspacePinned !== undefined) next.workspacePinned = normalizePins(partial.workspacePinned)
     if (partial.colors !== undefined) next.colors = { ...partial.colors }
     if (partial.workspaceColors !== undefined) next.workspaceColors = { ...partial.workspaceColors }
+    if (partial.boards !== undefined) next.boards = partial.boards
+    if (partial.tags !== undefined) next.tags = partial.tags
+    if (partial.views !== undefined) next.views = partial.views
     this.snapshot = next
     this.notify()
   }

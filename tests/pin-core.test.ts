@@ -104,9 +104,12 @@ describe('stored-pin envelope', () => {
     workspacePinned: ['w2', 'w1'],
     colors: { a: PIN_COLOR_PALETTE[0] },
     workspaceColors: { w1: PIN_COLOR_PALETTE[2] },
+    boards: { byId: { work: { name: 'Work', order: 0 } }, membership: { a: 'work' } },
+    tags: { a: ['release', 'research'] },
+    views: [{ id: 'v1', name: 'work view', text: '', tags: [], board: 'work' }],
   }
 
-  it('round-trips through the v2 envelope', () => {
+  it('round-trips through the v3 envelope', () => {
     expect(decodeStoredPins(JSON.parse(encodeStoredPins(fullDoc)))).toEqual(fullDoc)
   })
 
@@ -118,7 +121,7 @@ describe('stored-pin envelope', () => {
     expect(decodeStoredPins({ v: 1, pinned: ['a', 'b', 'a', 7] })).toEqual({ ...emptyStoredPins(), pinned: ['a', 'b'] })
   })
 
-  it('normalizes every v2 payload field', () => {
+  it('normalizes every v2 payload field and migrates to v3 defaults', () => {
     expect(decodeStoredPins({
       v: 2,
       pinned: ['a', 'a'],
@@ -126,6 +129,7 @@ describe('stored-pin envelope', () => {
       colors: { a: PIN_COLOR_PALETTE[1], x: 'nope' },
       workspaceColors: 'broken',
     })).toEqual({
+      ...emptyStoredPins(),
       pinned: ['a'],
       workspacePinned: ['w'],
       colors: { a: PIN_COLOR_PALETTE[1] },

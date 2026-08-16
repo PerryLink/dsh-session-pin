@@ -15,6 +15,7 @@
  * @module dsh-session-pin/pin-store
  */
 import { decodeStoredPins, emptyStoredPins, encodeStoredPins, normalizeColors, normalizePins } from './pin-core.ts'
+import { normalizeBoards, normalizeTags, normalizeViews, type BoardRegistry, type SavedView } from './navigator.ts'
 
 /** Browser-local storage key (remote-browser fallback). */
 export const STORAGE_KEY = 'dsh.session-pin.pinned'
@@ -28,6 +29,18 @@ export interface PinSection {
   maxPins?: number
   reorderOnLoad?: boolean
   pruneStale?: boolean
+  /** Pin groups (boards) and their membership. */
+  boards?: BoardRegistry
+  /** Session/workspace id → tags. */
+  tags?: Record<string, string[]>
+  /** Saved filter views. */
+  views?: SavedView[]
+  /** Feature switches mirrored from the host Config base. */
+  enableBoards?: boolean
+  enableTags?: boolean
+  enableViews?: boolean
+  enableHealth?: boolean
+  enableGoto?: boolean
 }
 
 /** One consistent read of the pin store. */
@@ -40,6 +53,12 @@ export interface PinStoreSnapshot {
   colors: Record<string, string>
   /** Workspace id → palette color. */
   workspaceColors: Record<string, string>
+  /** Pin groups (boards) and their membership. */
+  boards: BoardRegistry
+  /** Session/workspace id → tags. */
+  tags: Record<string, string[]>
+  /** Saved filter views (newest last). */
+  views: SavedView[]
   /** Whether persistence is browser-local (no Host settings transport). */
   local: boolean
   /** Pin-count limit visible in this mode (per level); 0 = unlimited. */
@@ -48,6 +67,12 @@ export interface PinStoreSnapshot {
   reorderOnLoad: boolean
   /** Drop pins for entities absent from a ready list (deleted/archived). */
   pruneStale: boolean
+  /** Feature switches mirrored from the host Config base. */
+  enableBoards: boolean
+  enableTags: boolean
+  enableViews: boolean
+  enableHealth: boolean
+  enableGoto: boolean
 }
 
 /** The settings-scope slice the store reads and writes through. */
@@ -105,6 +130,9 @@ export function createPinStore(scope: PinScope, storage: StorageLike, storageEve
     workspacePinned: string[]
     colors: Record<string, string>
     workspaceColors: Record<string, string>
+    boards: BoardRegistry
+    tags: Record<string, string[]>
+    views: SavedView[]
   } => {
     try {
       return decodeStoredPins(JSON.parse(storage.getItem(STORAGE_KEY) ?? '[]'))
@@ -124,6 +152,11 @@ export function createPinStore(scope: PinScope, storage: StorageLike, storageEve
         maxPins: 0,
         reorderOnLoad: true,
         pruneStale: true,
+        enableBoards: true,
+        enableTags: true,
+        enableViews: true,
+        enableHealth: true,
+        enableGoto: true,
       }
     }
     const value = scope.getSnapshot().value
@@ -132,10 +165,18 @@ export function createPinStore(scope: PinScope, storage: StorageLike, storageEve
       workspacePinned: normalizePins(value?.workspacePinned ?? []),
       colors: normalizeColors(value?.colors ?? {}),
       workspaceColors: normalizeColors(value?.workspaceColors ?? {}),
+      boards: normalizeBoards(value?.boards),
+      tags: normalizeTags(value?.tags),
+      views: normalizeViews(value?.views),
       local: false,
       maxPins: value?.maxPins ?? 0,
       reorderOnLoad: value?.reorderOnLoad ?? true,
       pruneStale: value?.pruneStale ?? true,
+      enableBoards: value?.enableBoards ?? true,
+      enableTags: value?.enableTags ?? true,
+      enableViews: value?.enableViews ?? true,
+      enableHealth: value?.enableHealth ?? true,
+      enableGoto: value?.enableGoto ?? true,
     }
   }
 
@@ -148,6 +189,9 @@ export function createPinStore(scope: PinScope, storage: StorageLike, storageEve
         if (section.workspacePinned !== undefined) doc.workspacePinned = normalizePins(section.workspacePinned)
         if (section.colors !== undefined) doc.colors = normalizeColors(section.colors)
         if (section.workspaceColors !== undefined) doc.workspaceColors = normalizeColors(section.workspaceColors)
+        if (section.boards !== undefined) doc.boards = normalizeBoards(section.boards)
+        if (section.tags !== undefined) doc.tags = normalizeTags(section.tags)
+        if (section.views !== undefined) doc.views = normalizeViews(section.views)
         try {
           storage.setItem(STORAGE_KEY, encodeStoredPins(doc))
         } catch {

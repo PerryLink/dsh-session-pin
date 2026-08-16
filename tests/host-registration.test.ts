@@ -34,7 +34,7 @@ describe('session-pin host apply', () => {
 
   it('fills the policy defaults from the config schema', () => {
     const parsed = (Config as (value: unknown) => Config)({})
-    expect(parsed).toEqual({ maxPins: 0, reorderOnLoad: true, pruneStale: true })
+    expect(parsed).toEqual({ maxPins: 0, reorderOnLoad: true, pruneStale: true, enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true })
   })
 
   it('rejects a negative maxPins at parse time', () => {

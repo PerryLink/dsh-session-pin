@@ -156,12 +156,15 @@ interface PanelInjected {
 
 type PanelProps = ComposedProps<'shell.overlay', string, never, undefined, PanelInjected>
 
-/** One panel row: pin glyph, color dot, title; click opens and closes the panel. */
+/** One panel row: pin glyph, color dot, title; click opens and closes the panel.
+ *  Navigator attributes (id/title/tags/board) let the nav bar filter and
+ *  annotate rows without entering React's tree. */
 function panelRow(
   key: string,
   title: string,
   color: string | undefined,
   onClick: () => void,
+  navigator?: { id: string; tags: readonly string[]; boardId?: string; sessionId?: string },
 ): React.ReactNode {
   return React.createElement('div', {
     key,
@@ -169,6 +172,13 @@ function panelRow(
     role: 'button',
     tabIndex: 0,
     title,
+    ...navigator === undefined ? {} : {
+      'data-id': navigator.id,
+      'data-title': title,
+      'data-tags': navigator.tags.join(' '),
+      ...navigator.boardId === undefined ? {} : { 'data-board': navigator.boardId },
+      ...navigator.sessionId === undefined ? {} : { 'data-session-id': navigator.sessionId },
+    },
     onClick,
     onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key !== 'Enter' && event.key !== ' ') return
@@ -216,6 +226,14 @@ function PinPanel(props: PanelProps): React.ReactNode {
 
   if (!open) return null
   const rows: React.ReactNode[] = []
+  const boards = pin.getBoards()
+  const tags = pin.getTags()
+  const navFor = (id: string, sessionId?: string) => ({
+    id,
+    tags: tags[id] ?? [],
+    ...boards.membership[id] === undefined ? {} : { boardId: boards.membership[id] },
+    ...sessionId === undefined ? {} : { sessionId },
+  })
   if (workspacePinned.length > 0) {
     rows.push(React.createElement('div', { key: '__ws-head__', className: PANEL_SECTION_CLASS }, t('panelWorkspaces')))
     const byId = new Map(workspaceList.items.map(item => [item.workspaceId, item.title]))
@@ -224,7 +242,7 @@ function PinPanel(props: PanelProps): React.ReactNode {
       rows.push(panelRow(`w:${id}`, title, pin.getWorkspaceColor(id), () => {
         openWorkspace(id)
         ui.setOpen(false)
-      }))
+      }, navFor(id)))
     }
   }
   if (pinned.length > 0) {
@@ -234,7 +252,7 @@ function PinPanel(props: PanelProps): React.ReactNode {
       rows.push(panelRow(`s:${id}`, title, pin.getColor(id), () => {
         openSession(id)
         ui.setOpen(false)
-      }))
+      }, navFor(id, id)))
     }
   }
   if (rows.length === 0) {

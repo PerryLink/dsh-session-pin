@@ -137,7 +137,9 @@ export function hexToRgba(hex: string, alpha: number): string {
 
 // ── Browser-local storage envelope ────────────────────────────────────────
 
-/** The complete pin document the browser-local store persists (v2). */
+import { emptyBoards, normalizeBoards, normalizeTags, normalizeViews, type BoardRegistry, type SavedView } from './navigator.ts'
+
+/** The complete pin document the browser-local store persists (v3). */
 export interface StoredPinsDoc {
   /** Normalized pinned session ids, newest pin first. */
   pinned: string[]
@@ -147,17 +149,23 @@ export interface StoredPinsDoc {
   colors: Record<string, string>
   /** Workspace id → palette color. */
   workspaceColors: Record<string, string>
+  /** Pin groups (boards) and their membership. */
+  boards: BoardRegistry
+  /** Session/workspace id → tags. */
+  tags: Record<string, string[]>
+  /** Saved filter views (newest last). */
+  views: SavedView[]
 }
 
 /** Empty document baseline. */
 export function emptyStoredPins(): StoredPinsDoc {
-  return { pinned: [], workspacePinned: [], colors: {}, workspaceColors: {} }
+  return { pinned: [], workspacePinned: [], colors: {}, workspaceColors: {}, boards: emptyBoards(), tags: {}, views: [] }
 }
 
-/** Versioned browser-local storage envelope (v2). */
-export interface StoredPinsV2 extends StoredPinsDoc {
+/** Versioned browser-local storage envelope (v3). */
+export interface StoredPinsV3 extends StoredPinsDoc {
   /** Envelope version discriminator. */
-  v: 2
+  v: 3
 }
 
 /**
@@ -167,20 +175,25 @@ export interface StoredPinsV2 extends StoredPinsDoc {
  * @returns the JSON document to store.
  */
 export function encodeStoredPins(doc: StoredPinsDoc): string {
-  const payload: StoredPinsV2 = {
-    v: 2,
+  const payload: StoredPinsV3 = {
+    v: 3,
     pinned: [...doc.pinned],
     workspacePinned: [...doc.workspacePinned],
     colors: { ...doc.colors },
     workspaceColors: { ...doc.workspaceColors },
+    boards: normalizeBoards(doc.boards),
+    tags: normalizeTags(doc.tags),
+    views: normalizeViews(doc.views),
   }
   return JSON.stringify(payload)
 }
 
 /**
- * Decode a stored pin document: the v2 envelope, the v1 envelope (session
- * pins only), or a legacy bare string array from pre-envelope versions.
- * Malformed input yields the empty document.
+ * Decode a stored pin document: the v3 envelope (full navigator data), the
+ * v2 envelope (pins + colors), the v1 envelope (session pins only), or a
+ * legacy bare string array from pre-envelope versions. Older documents
+ * migrate forward with empty boards/tags/views; malformed input yields the
+ * empty document.
  * @param value - parsed JSON from browser-local storage.
  * @returns the normalized pin document.
  */
@@ -194,16 +207,31 @@ export function decodeStoredPins(value: unknown): StoredPinsDoc {
       workspacePinned?: unknown
       colors?: unknown
       workspaceColors?: unknown
+      boards?: unknown
+      tags?: unknown
+      views?: unknown
     }
     if (candidate.v === 1 && Array.isArray(candidate.pinned)) {
       return { ...empty, pinned: normalizePins(candidate.pinned) }
     }
     if (candidate.v === 2) {
       return {
+        ...empty,
         pinned: normalizePins(candidate.pinned),
         workspacePinned: normalizePins(candidate.workspacePinned),
         colors: normalizeColors(candidate.colors),
         workspaceColors: normalizeColors(candidate.workspaceColors),
+      }
+    }
+    if (candidate.v === 3) {
+      return {
+        pinned: normalizePins(candidate.pinned),
+        workspacePinned: normalizePins(candidate.workspacePinned),
+        colors: normalizeColors(candidate.colors),
+        workspaceColors: normalizeColors(candidate.workspaceColors),
+        boards: normalizeBoards(candidate.boards),
+        tags: normalizeTags(candidate.tags),
+        views: normalizeViews(candidate.views),
       }
     }
   }

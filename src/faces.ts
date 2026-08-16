@@ -40,6 +40,12 @@ export interface PinReadFace {
   clearColor(id: string): Promise<void>
   /** Remove one workspace's color. */
   clearWorkspaceColor(id: string): Promise<void>
+  /** The board registry (pin groups + membership). */
+  getBoards(): import('./navigator.ts').BoardRegistry
+  /** The id → tags map. */
+  getTags(): Record<string, string[]>
+  /** The saved filter views, newest last. */
+  getViews(): readonly import('./navigator.ts').SavedView[]
   subscribe(listener: () => void): () => void
 }
 
