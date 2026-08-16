@@ -5,7 +5,7 @@
  * one injected stylesheet covering the row badges, the swatch button, the
  * per-color row tint, the session-header toggle, the sidebar foot action,
  * and the overlay panel.
- * @module @dsh-external/dsh-session-pin/pin-ui-shared
+ * @module dsh-session-pin/pin-ui-shared
  */
 import { hexToRgba, PIN_COLOR_PALETTE } from './pin-core.ts'
 

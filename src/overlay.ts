@@ -19,7 +19,7 @@
  * stale or duplicate controls. A slot-registry subscription re-renders on
  * slot declaration so the session-row gate reacts without waiting for a DOM
  * mutation.
- * @module @dsh-external/dsh-session-pin/overlay
+ * @module dsh-session-pin/overlay
  */
 import type { PinReadFace, PinTranslate, SessionListFace, WorkspaceListFace } from './faces.ts'
 import { colorClassIndex } from './pin-core.ts'

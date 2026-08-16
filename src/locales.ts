@@ -4,7 +4,7 @@
  * into the slot system's LocaleNamespaceMap so the typed `bind`/`register`
  * faces check every key), the zh/en dictionaries, and the English fallback
  * used when no locale service is mounted in the composition.
- * @module @dsh-external/dsh-session-pin/locales
+ * @module dsh-session-pin/locales
  */
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type { PinKey } from './faces.ts'

@@ -13,7 +13,7 @@
  * newer than the npm baseline this plugin compiles against, the registry is
  * consumed through a narrow structural face with boundary casts — runtime
  * probing, never compile-time dependence on the future key.
- * @module @dsh-external/dsh-session-pin/row-slot
+ * @module dsh-session-pin/row-slot
  */
 import * as React from 'react'
 import type { PinReadFace, PinTranslate } from './faces.ts'

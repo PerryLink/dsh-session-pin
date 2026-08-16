@@ -10,8 +10,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache-2.0">
-  <img src="https://img.shields.io/npm/v/%40dsh-external%2Fdsh-session-pin" alt="npm version">
-  <img src="https://img.shields.io/npm/dm/%40dsh-external%2Fdsh-session-pin" alt="npm downloads">
+  <img src="https://img.shields.io/npm/v/dsh-session-pin" alt="npm version">
+  <img src="https://img.shields.io/npm/dm/dsh-session-pin" alt="npm downloads">
   <img src="https://github.com/PerryLink/dsh-session-pin/actions/workflows/ci.yml/badge.svg" alt="CI">
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-2ea44f.svg" alt="Topic: dsh-plugin"></a>
   <img src="https://img.shields.io/badge/DSH-0.1.0--rc.6-3884ff.svg" alt="DSH baseline: 0.1.0-rc.6">
@@ -54,7 +54,7 @@ Session lists sort by recency: the conversation you rely on all week slowly sink
 
 ```yaml
 plugins:
-  '@dsh-external/dsh-session-pin':
+  'dsh-session-pin':
     path: /path/to/dsh-session-pin
     config:
       maxPins: 5        # optional; 0 = unlimited per level (default)

@@ -4,7 +4,7 @@
  * (controller ↔ overlay ↔ slot components ↔ browser glue). They exist so the
  * framework-free modules stay testable without the deepseek client types
  * and the glue performs the one branded-id adaptation per boundary.
- * @module @dsh-external/dsh-session-pin/faces
+ * @module dsh-session-pin/faces
  */
 
 /** Outcome of one pin commit attempt. */

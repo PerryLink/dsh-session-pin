@@ -14,7 +14,7 @@
 import { build } from 'esbuild'
 import { mkdirSync, readFileSync } from 'node:fs'
 
-const ID = '@dsh-external/dsh-session-pin'
+const ID = 'dsh-session-pin'
 const HOST_EXTERNALS = ['@deepseek-ai/schemastery', '@deepseek-ai/dsh-settings']
 // Platform seed words the shell shares into the module table: the client
 // factory's `require` resolves them to the shell's own instances (never a

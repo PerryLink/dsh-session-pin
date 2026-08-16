@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'node:path'
 
 const BASE = process.env.DSH_BASE_URL ?? 'http://127.0.0.1:3080'
-const PLUGIN_ID = '@dsh-external/dsh-session-pin'
+const PLUGIN_ID = 'dsh-session-pin'
 const BADGE = 'button.__dsh-session-pin-badge__'
 const SWATCH = 'button.__dsh-session-pin-swatch__'
 const HEADER = 'button.__dsh-session-pin-header__'

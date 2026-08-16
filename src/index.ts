@@ -13,7 +13,7 @@
  * session projection; once the upstream write channel (an RPC the browser can
  * call) exists, fold pinned ids from the logs and retire this namespace.
  * Until then the settings namespace is the durable store.
- * @module @dsh-external/dsh-session-pin
+ * @module dsh-session-pin
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'

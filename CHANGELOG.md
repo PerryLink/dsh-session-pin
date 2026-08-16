@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file. The format foll
 - Overlay click handling is routed by row kind, so a session row whose title collides with a workspace label can never toggle a workspace pin.
 - Runtime probes guard newer service methods (`slots.subscribe/snapshot`, `workspace.insertBefore/startSession`) so older baselines degrade gracefully.
 - READMEs synchronized across all five languages (English is the source).
+- **Package renamed to unscoped `dsh-session-pin`** ahead of the first publish: the `@dsh-external` npm scope belongs to a retired DSH-beta organization and cannot be published into by third parties (403 for non-members).
 
 ## [0.2.0] - 2026-08-14
 

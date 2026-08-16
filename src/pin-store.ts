@@ -12,7 +12,7 @@
  * both color maps. Cross-tab consistency in local mode rides the window
  * `storage` event: a write in another tab republishes through the subscribe
  * feed.
- * @module @dsh-external/dsh-session-pin/pin-store
+ * @module dsh-session-pin/pin-store
  */
 import { decodeStoredPins, emptyStoredPins, encodeStoredPins, normalizeColors, normalizePins } from './pin-core.ts'
 

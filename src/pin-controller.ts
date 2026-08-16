@@ -18,7 +18,7 @@
  * list, panel, and reordering stay consistent. A failing remote self-disables
  * and the store takes over; `connection/reset` re-enables it. Workspace pins
  * and both color maps are plugin-local state and always write to the store.
- * @module @dsh-external/dsh-session-pin/pin-controller
+ * @module dsh-session-pin/pin-controller
  */
 import { nextPaletteColor, normalizePins, pruneColors, prunePins } from './pin-core.ts'
 import type { PinRemoteLike } from './faces.ts'

@@ -17,7 +17,7 @@
  * The row slot (`sessions.row.action`) is the authoritative session-row
  * surface; while it is declared the DOM overlay skips session rows entirely
  * (no duplicate pins) and only paints workspace rows, which have no slot.
- * @module @dsh-external/dsh-session-pin/client
+ * @module dsh-session-pin/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
@@ -47,7 +47,7 @@ export const inject = ['sessions', 'workspaces', 'settingsScope', 'connection', 
 /** Settings namespace registered by the host half. */
 const NAMESPACE = 'session-pin'
 /** Plugin identity for style-tag bookkeeping. */
-const PLUGIN_ID = '@dsh-external/dsh-session-pin'
+const PLUGIN_ID = 'dsh-session-pin'
 
 /** Inject the plugin-owned stylesheet once per factory execution. */
 function injectStyles(): HTMLStyleElement {

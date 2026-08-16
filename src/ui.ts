@@ -17,7 +17,7 @@
  * React arrives through the module-table seed word (`require('react')`), the
  * shell's own instance — the client bundle externalizes it, never a
  * duplicate.
- * @module @dsh-external/dsh-session-pin/ui
+ * @module dsh-session-pin/ui
  */
 import * as React from 'react'
 import type { Context } from '@deepseek-ai/cordis'

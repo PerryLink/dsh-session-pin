@@ -4,7 +4,7 @@
  * controller, and the unit tests. No DOM, no cordis, no I/O: everything here
  * is a deterministic transform. Two pin levels share this module — sessions
  * and workspaces — plus the preset row-color palette the swatch button cycles.
- * @module @dsh-external/dsh-session-pin/pin-core
+ * @module dsh-session-pin/pin-core
  */
 
 /** Preset row-color palette cycled by the swatch button (the only values the store accepts). */
