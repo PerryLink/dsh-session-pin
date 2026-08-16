@@ -24,6 +24,8 @@
     "README.es.md",
     "README.pt.md",
     "README.hi.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "dsh": {
