@@ -56,6 +56,15 @@
 - **健康摘要** —— 每个已置顶会话行追加一行只读、脱敏的健康信息（`N 条消息 · 你|ai · 相对时间`），源自公开会话快照——只显示计数与方向，绝不显示内容。
 - **`/goto <关键词>`** —— 作曲器中以 `/goto` 开头的一行加回车跳转：唯一命中直接打开，多命中列出选择，无命中给出说明。命令行绝不发送给模型。
 
+## How it works
+
+- **Host 半**（`src/index.ts`）——注册持久化的 `session-pin` settings namespace（两组置顶 id 列表、两张颜色映射与组织器状态，加上 host 策略 `maxPins`/`reorderOnLoad`/`pruneStale`）；无会话事件、无模型流量。
+- **浏览器半**（`src/client.ts`）——组装无框架依赖的 `PinStore`（settings 传输，降级为带版本信封的 `localStorage` 文档并跨标签页同步）、`PinController`（两级切换 / 换色 / 剪枝 / 重排状态机）与 UI：行覆盖层、可选行槽位注册、会话头开关、侧栏底部入口与已置顶面板。排序走 `ctx.workspaces`。
+- **日志支撑的写通道**——在挂载了内置 `dsh-session-pin` 服务的构建上，每次会话切换先经 `session.setPinned` RPC 提交（`session/pin` 事件日志是规范驻留），再把提交镜像写入 settings store；RPC 失败或超时自动降级为 settings 直写。
+- **构建**——esbuild 产出 Host ESM 半与包裹在 Web 引导工厂（`window.__ModuleLoader__.load({ id, factory })`）中的 client CJS 半；`react` 外置到外壳自身的 React，任何 `@deepseek-ai/*` 值导入渗入浏览器包都会使构建失败。
+
+**使用的扩展点：** `settings`（Host）；`sessions`、`workspaces`、`settingsScope`、`connection`、`remote`、`slots`（client）；`locale`（client，可选）；`conversation.session.header.actions`、`sidebar.footer.action`、`shell.overlay`，以及上游声明时的 `sessions.row.action` 行槽位。**模型可见影响：无**——纯 UI 插件：不新增会话事件，不给任何模型请求增加 token。
+
 ## Quick start
 
 ```sh
@@ -123,6 +132,12 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 - **行徽标降级** —— 上游行槽位不可用时，会话行按标题文本匹配；标题重复时每个匹配行都显示徽标且只切换第一个匹配（外观性问题）。
 - **行 DOM 依赖** —— 覆盖层依赖核心行的 `role="treeitem"` 结构，需跟随上游 UI 变更。
 
+## Roadmap
+
+- 右键 / 行菜单「置顶」入口（需要核心行级菜单槽位；行徽标槽位已在上游落地）。
+- 规范驻留：日志支撑的 `session/pin` 事件 + `pin` 投影 + 写 RPC（上游）——届时 settings namespace 退役为持久层，插件改用 `useProjection('pin')`。
+- 规范驻留落地后的完整取色器弹层（自定义颜色）；当前的循环换色按钮已覆盖预设调色板。
+
 ## Development
 
 ```sh
@@ -140,6 +155,29 @@ node scripts/verify-live.mjs    # 针对运行中的 `dsh web` 实测（DSH_CHEC
 ## Contributors
 
 - [@PerryLink](https://github.com/PerryLink) —— 创建者与维护者：置顶交互、持久化、工作区排序、按置顶行颜色、导航组织器与五语文档。
+
+## PerryLink DSH Plugin Family
+
+本项目是 [PerryLink](https://github.com/PerryLink) 维护的 [DeepSeek Harness 插件](https://github.com/PerryLink)之一。如果你觉得这个插件有用，其余的很可能同样有用：
+
+| 插件 | 一句话说明 |
+|---|---|
+| [dsh-mask](https://github.com/PerryLink/dsh-mask) | PII 脱敏中间件：模型边界匿名化、展示层还原 |
+| [dsh-mcp-panel](https://github.com/PerryLink/dsh-mcp-panel) | 只读 MCP 运行时面板：/mcp 命令 + 设置页，状态/工具/错误一览 |
+| [dsh-doublecheck](https://github.com/PerryLink/dsh-doublecheck) | 工程纪律守门：需求审讯、测试证据门、对抗评审 |
+| [dsh-background-agents](https://github.com/PerryLink/dsh-background-agents) | 持久化后台子代理：Web 侧边栏进度、随时留言与打断 |
+| [dsh-lsp-actions](https://github.com/PerryLink/dsh-lsp-actions) | 基于语言服务器的诊断/格式化/补全/代码动作/重命名 |
+| [dsh-output-styles](https://github.com/PerryLink/dsh-output-styles) | 对标 Claude Code outputStyles 的运行时风格切换 |
+| [dsh-checkpoint-rewind](https://github.com/PerryLink/dsh-checkpoint-rewind) | 对标 Claude Code /rewind：快照、会话 fork、一键回退 |
+| [dsh-permission-rules](https://github.com/PerryLink/dsh-permission-rules) | Claude Code 风格声明式 allow/deny/ask 权限规则，带审计 |
+| [dsh-auto-review](https://github.com/PerryLink/dsh-auto-review) | 审批链上的第二模型自动审查，默认 fail-closed |
+| [dsh-memento](https://github.com/PerryLink/dsh-memento) | 带审批门的跨会话记忆：ctx.memory + SQLite + memory 工具 |
+| [dsh-skill-pack-security](https://github.com/PerryLink/dsh-skill-pack-security) | 安全审计技能包：密钥扫描、依赖与供应链审查 |
+| **[dsh-session-pin](https://github.com/PerryLink/dsh-session-pin)** | 在 Web 侧边栏置顶会话，持久排序 |
+| [dsh-composer-history](https://github.com/PerryLink/dsh-composer-history) | Web 作曲器终端式输入历史：方向键、Ctrl+R 搜索 |
+| [dsh-github](https://github.com/PerryLink/dsh-github) | DSH 的 GitHub PR/issue 集成，所有写操作经审批门 |
+| [dsh-plugin-guide](https://github.com/PerryLink/dsh-plugin-guide) | 插件开发知识库，随 bundle 安装的按需 agent 技能 |
+| [dsh-claude-move](https://github.com/PerryLink/dsh-claude-move) | 把 Claude Code 会话、记忆、技能和 CLAUDE.md 迁入 DSH |
 
 ## License
 

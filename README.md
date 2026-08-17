@@ -56,6 +56,15 @@ Four browser-local capabilities organize multi-session work on top of pinning. A
 - **Health summary** — each pinned session row appends a read-only, sanitized line (`N msgs · you|ai · relative time`) derived from the public session snapshot — counts and directions only, never content.
 - **`/goto <keyword>`** — a composer line starting with `/goto` plus Enter jumps: a unique title/tag match opens it, several matches list in a prompt, none explains. The command line never reaches the model.
 
+## How it works
+
+- **Host half** (`src/index.ts`) — registers the durable `session-pin` settings namespace (the two pinned id lists, the two color maps, and the organizer state, plus the host policy `maxPins`/`reorderOnLoad`/`pruneStale`); no session events, no model traffic.
+- **Browser half** (`src/client.ts`) — assembles a framework-free `PinStore` (settings transport, degrading to a versioned `localStorage` document with cross-tab sync), a `PinController` (two-level toggle / color cycle / prune / reorder state machine), and the UI: the row overlay, the optional row-slot registration, the header toggle, the sidebar foot action, and the pinned panel. Ordering goes through `ctx.workspaces`.
+- **Log-backed write channel** — on builds mounting the built-in `dsh-session-pin` service, every session toggle commits through the `session.setPinned` RPC first (the `session/pin` event log is the canonical residence) and mirrors the commit into the settings store; a failed or slow RPC degrades to a direct settings write.
+- **Build** — esbuild emits the host ESM half and the client CJS half wrapped in the web boot factory (`window.__ModuleLoader__.load({ id, factory })`); `react` is externalized onto the shell's own React, and a purity gate fails the build if any `@deepseek-ai/*` value import leaks into the browser bundle.
+
+**Extension points used:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (client); `locale` (client, optional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, and the upstream `sessions.row.action` row slot when declared. **Model-visible effects: none** — this is a UI-only plugin: it adds no session events and no tokens to any model request.
+
 ## Quick start
 
 ```sh
@@ -123,6 +132,12 @@ All tunables are Schemastery `Config` fields (changeable from cordis.yml). `cord
 - **Row badge fallback** — where the upstream row slot is unavailable, session rows are matched by title text; with duplicate titles the badge shows on every matching row and toggles the first match (cosmetic).
 - **Row DOM dependency** — the overlay relies on the core rows' `role="treeitem"` structure and must follow upstream UI changes.
 
+## Roadmap
+
+- Right-click / row-menu "Pin" entry (needs a core row-level menu slot; the row badge slot is upstream now).
+- Canonical residence: a log-backed `session/pin` event + `pin` projection + write RPC (upstream) — the settings namespace then retires as the durable store and the plugin consumes `useProjection('pin')`.
+- A full color-picker popover (custom colors) once the canonical residence exists; today's cycle swatch covers the preset palette.
+
 ## Development
 
 ```sh
@@ -140,6 +155,29 @@ node scripts/verify-live.mjs    # live check against a running `dsh web` (DSH_CH
 ## Contributors
 
 - [@PerryLink](https://github.com/PerryLink) — creator and maintainer: pin UX, durable persistence, workspace ordering, per-pin row colors, the navigation organizer, and the five-language docs.
+
+## PerryLink DSH Plugin Family
+
+This project is one of the [DeepSeek Harness plugins](https://github.com/PerryLink) maintained by [PerryLink](https://github.com/PerryLink). If this one helps you, the others likely will too:
+
+| Plugin | One-liner |
+|---|---|
+| [dsh-mask](https://github.com/PerryLink/dsh-mask) | PII masking middleware: anonymize at the model boundary, restore at the display layer |
+| [dsh-mcp-panel](https://github.com/PerryLink/dsh-mcp-panel) | Read-only MCP runtime panel: /mcp command + Settings tab with status, tools and errors |
+| [dsh-doublecheck](https://github.com/PerryLink/dsh-doublecheck) | Engineering-discipline guard: requirements grill, test gates, adversary review |
+| [dsh-background-agents](https://github.com/PerryLink/dsh-background-agents) | Durable background child agents with a Web UI sidebar, messaging and interrupt |
+| [dsh-lsp-actions](https://github.com/PerryLink/dsh-lsp-actions) | LSP diagnostics, formatting, completion, code actions and rename over language servers |
+| [dsh-output-styles](https://github.com/PerryLink/dsh-output-styles) | Claude Code outputStyles-equivalent runtime style switching |
+| [dsh-checkpoint-rewind](https://github.com/PerryLink/dsh-checkpoint-rewind) | Claude Code /rewind-equivalent: snapshots, session forks, one-shot restore |
+| [dsh-permission-rules](https://github.com/PerryLink/dsh-permission-rules) | Claude Code-style declarative allow/deny/ask permission rules with audit |
+| [dsh-auto-review](https://github.com/PerryLink/dsh-auto-review) | Second-model auto-review on the approval chain, fail-closed by default |
+| [dsh-memento](https://github.com/PerryLink/dsh-memento) | Approval-gated cross-session memory: ctx.memory seam + SQLite + memory tool |
+| [dsh-skill-pack-security](https://github.com/PerryLink/dsh-skill-pack-security) | Security-audit skill pack: secret scan, dependency and supply-chain review |
+| **[dsh-session-pin](https://github.com/PerryLink/dsh-session-pin)** | Pin sessions in the Web sidebar with durable ordering |
+| [dsh-composer-history](https://github.com/PerryLink/dsh-composer-history) | Terminal-style input history for the web composer: arrows, Ctrl+R search |
+| [dsh-github](https://github.com/PerryLink/dsh-github) | GitHub PR/issues integration for DSH, every write gated by approval |
+| [dsh-plugin-guide](https://github.com/PerryLink/dsh-plugin-guide) | Plugin-development knowledge base as an on-demand agent skill |
+| [dsh-claude-move](https://github.com/PerryLink/dsh-claude-move) | Migrate Claude Code sessions, memory, skills and CLAUDE.md into DSH |
 
 ## License
 

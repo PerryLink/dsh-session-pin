@@ -56,6 +56,15 @@ Quatro capacidades locais do navegador organizam o trabalho multi-sessão por ci
 - **Resumo de saúde** — cada linha de sessão fixada acrescenta uma linha de somente leitura e higienizada (`N msgs · you|ai · tempo relativo`) derivada da snapshot pública da sessão — apenas contagens e direções, nunca conteúdo.
 - **`/goto <palavra>`** — uma linha do compositor começando com `/goto` mais Enter salta: uma correspondência única abre, várias listam, nenhuma explica. A linha de comando nunca chega ao modelo.
 
+## How it works
+
+- **Metade host** (`src/index.ts`) — registra o namespace de settings durável `session-pin` (as duas listas de ids fixados, os dois mapas de cor e o estado do organizador, mais a política do host `maxPins`/`reorderOnLoad`/`pruneStale`); sem eventos de sessão, sem tráfego de modelo.
+- **Metade navegador** (`src/client.ts`) — monta um `PinStore` sem framework (transporte de settings, degradando para um documento versionado de `localStorage` com sincronização entre abas), um `PinController` (máquina de estados de alternar / ciclo de cor / podar / reordenar) e a UI: a sobreposição de linhas, o registro opcional do slot, o alternador de cabeçalho, a ação do rodapé e o painel de fixados. A ordenação passa por `ctx.workspaces`.
+- **Canal de escrita respaldado por log** — em builds que montam o serviço integrado `dsh-session-pin`, cada alternância de sessão confirma primeiro pelo RPC `session.setPinned` (o log de eventos `session/pin` é a residência canônica) e espelha no armazenamento de settings; um RPC falho ou lento degrada para escrita direta.
+- **Compilação** — o esbuild emite a metade ESM do host e a metade CJS do cliente envolvida na fábrica de boot web (`window.__ModuleLoader__.load({ id, factory })`); `react` é externalizado para o React do shell, e uma barreira de pureza falha o build se uma importação de valor `@deepseek-ai/*` vazar para o bundle do navegador.
+
+**Pontos de extensão usados:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (cliente); `locale` (cliente, opcional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, e o slot de linha `sessions.row.action` quando declarado. **Efeitos visíveis ao modelo: nenhum** — plugin somente de UI: não adiciona eventos de sessão nem tokens.
+
 ## Quick start
 
 ```sh
@@ -123,6 +132,12 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 - **Fallback da insígnia de linha** — onde o slot de linha do upstream não está disponível, as linhas de sessão são casadas pelo texto do título; com títulos duplicados a insígnia aparece em cada linha correspondente e alterna a primeira correspondência (cosmético).
 - **Dependência do DOM das linhas** — a sobreposição depende da estrutura `role="treeitem"` das linhas do núcleo e deve acompanhar as mudanças de UI do upstream.
 
+## Roadmap
+
+- Entrada «Fixar» no menu de contexto / menu da linha (precisa de um slot de menu em nível de linha no núcleo; o slot de insígnia de linha já está no upstream).
+- Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.
+- Um seletor de cor completo em popover (cores personalizadas) uma vez que a residência canônica existir; o botão de ciclo atual cobre a paleta predefinida.
+
 ## Development
 
 ```sh
@@ -140,6 +155,29 @@ node scripts/verify-live.mjs    # verificação ao vivo contra um `dsh web` (env
 ## Contributors
 
 - [@PerryLink](https://github.com/PerryLink) — criador e mantenedor: experiência de pin, persistência durável, ordenação de espaços de trabalho, cores por pin, o organizador de navegação e a documentação em cinco idiomas.
+
+## PerryLink DSH Plugin Family
+
+Este projeto é um dos [plugins do DeepSeek Harness](https://github.com/PerryLink) mantidos por [PerryLink](https://github.com/PerryLink). Se este ajudar você, os outros provavelmente também ajudarão:
+
+| Plugin | Em uma linha |
+|---|---|
+| [dsh-mask](https://github.com/PerryLink/dsh-mask) | Middleware de mascaramento de PII: anonimiza no limite do modelo, restaura na camada de exibição |
+| [dsh-mcp-panel](https://github.com/PerryLink/dsh-mcp-panel) | Painel MCP somente leitura: comando /mcp + aba de configurações com status, ferramentas e erros |
+| [dsh-doublecheck](https://github.com/PerryLink/dsh-doublecheck) | Guarda de disciplina de engenharia: interrogatório de requisitos, portões de teste, revisão adversária |
+| [dsh-background-agents](https://github.com/PerryLink/dsh-background-agents) | Agentes filhos em segundo plano com barra lateral web, mensagens e interrupção |
+| [dsh-lsp-actions](https://github.com/PerryLink/dsh-lsp-actions) | Diagnóstico, formatação, autocompletar, ações de código e renomear via LSP |
+| [dsh-output-styles](https://github.com/PerryLink/dsh-output-styles) | Troca de estilo em runtime equivalente ao outputStyles do Claude Code |
+| [dsh-checkpoint-rewind](https://github.com/PerryLink/dsh-checkpoint-rewind) | Equivalente ao /rewind do Claude Code: snapshots, forks de sessão, restauração em um clique |
+| [dsh-permission-rules](https://github.com/PerryLink/dsh-permission-rules) | Regras de permissão declarativas allow/deny/ask estilo Claude Code, com auditoria |
+| [dsh-auto-review](https://github.com/PerryLink/dsh-auto-review) | Revisão automática de segundo modelo na cadeia de aprovação, fail-closed por padrão |
+| [dsh-memento](https://github.com/PerryLink/dsh-memento) | Memória entre sessões com aprovação: seam ctx.memory + SQLite + ferramenta memory |
+| [dsh-skill-pack-security](https://github.com/PerryLink/dsh-skill-pack-security) | Pacote de skills de auditoria de segurança: varredura de segredos, revisão de dependências e cadeia de suprimentos |
+| **[dsh-session-pin](https://github.com/PerryLink/dsh-session-pin)** | Fixa sessões na barra lateral web com ordenação durável |
+| [dsh-composer-history](https://github.com/PerryLink/dsh-composer-history) | Histórico de entrada estilo terminal para o compositor web: setas, busca Ctrl+R |
+| [dsh-github](https://github.com/PerryLink/dsh-github) | Integração de PR/issues do GitHub para DSH, toda escrita com aprovação |
+| [dsh-plugin-guide](https://github.com/PerryLink/dsh-plugin-guide) | Base de conhecimento de desenvolvimento de plugins como skill de agente sob demanda |
+| [dsh-claude-move](https://github.com/PerryLink/dsh-claude-move) | Migra sessões, memória, skills e CLAUDE.md do Claude Code para DSH |
 
 ## License
 
