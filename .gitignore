@@ -3,3 +3,4 @@ lib/
 *.tsbuildinfo
 verify-live/
 .playwright-mcp/
+coverage/

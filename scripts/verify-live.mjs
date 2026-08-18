@@ -85,8 +85,16 @@ log(`step client-bundle: HTTP ${bundleResponse.status}`)
 if (bundleResponse.status !== 200) fail('client bundle not served')
 
 // 2 ── headless browser: badge hover → pin → header toggle → panel ──────────
-const require = createRequire(join(CHECKOUT, 'apps/web/package.json'))
-const { chromium } = require('playwright')
+// Playwright comes from the harness checkout's apps/web; when the checkout is
+// a pruned/CI-less tree without it, fall back to this plugin's own install.
+let requireWeb
+try {
+  requireWeb = createRequire(join(CHECKOUT, 'apps/web/package.json'))
+  requireWeb.resolve('playwright')
+} catch {
+  requireWeb = createRequire(import.meta.url)
+}
+const { chromium } = requireWeb('playwright')
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 try {

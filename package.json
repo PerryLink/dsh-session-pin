@@ -25,7 +25,9 @@
       "settings:write"
     ],
     "compatibility": {
-      "dshVersions": ["0.1.0-rc.6"]
+      "dshVersions": [
+        "0.1.0-rc.6"
+      ]
     },
     "capability": {
       "id": "session-pin-toggle",
@@ -83,7 +85,12 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "oxlint",
+    "check:readmes": "node scripts/check-readme-sync.mjs",
+    "verify:self-contained": "node scripts/verify-self-contained.mjs",
+    "verify:artifacts": "node scripts/verify-artifacts.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -92,6 +99,8 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis-plugin-include": "1.0.6",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.2",
     "@deepseek-ai/dsh-api-remotes": "0.1.0-rc.6",
     "@deepseek-ai/dsh-client-locale": "0.1.0-rc.6",
     "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.6",
@@ -103,8 +112,11 @@
     "@deepseek-ai/dsh-settings": "0.1.0-rc.6",
     "@deepseek-ai/schemastery": "^3.18.1",
     "@types/react": "18.3.0",
+    "@vitest/coverage-v8": "3.2.7",
     "esbuild": "^0.25.0",
     "jsdom": "26.0.0",
+    "oxlint": "0.18.1",
+    "playwright": "^1.62.1",
     "react": "18.3.1",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
