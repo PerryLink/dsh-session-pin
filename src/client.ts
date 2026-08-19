@@ -287,7 +287,10 @@ export function apply(ctx: Context): void {
   // keeps slot inject faces stable while the binding upgrades live.
   let translate: PinTranslate = fallbackTranslate
   ctx.inject(['locale'], (localeCtx) => {
-    localeCtx.locale.register(LOCALE_NS, LOCALE_DICTS)
+    // locale.register returns the only unregister disposer and throws on a
+    // duplicate namespace: hold it on this scope's fiber so unload/reload
+    // cycles can re-register the dictionaries.
+    localeCtx.effect(() => localeCtx.locale.register(LOCALE_NS, LOCALE_DICTS), 'dsh-session-pin: dictionaries')
     const bound = localeCtx.locale.bind(LOCALE_NS)
     translate = key => bound(key)
   })
