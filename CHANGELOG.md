@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-08-19
+
+### Fixed
+
+- **Client dictionaries survive hot-reload**: the browser half now holds the `locale.register` disposer on the locale inject scope's fiber (`ctx.effect`; the locale registry throws on a duplicate namespace). Disposing the client fiber unregisters the `session-pin` dictionaries; remounting re-registers cleanly instead of throwing the duplicate-namespace error. Regression covered by a dispose-and-remount client test against a duplicate-strict locale registry.
+
 ## [0.4.0] - 2026-08-16
 
 ### Added
