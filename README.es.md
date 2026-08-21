@@ -24,7 +24,7 @@
 
 | Superficie | Estado |
 |---|---|
-| Harness | DeepSeek Harness `0.1.0-rc.6` (paquetes de cliente `0.1.0-rc.6`) |
+| Harness | DeepSeek Harness `0.1.0-rc.8` (paquetes de cliente `0.1.0-rc.8`) |
 | Node | `>= 22` (base mínima de desarrollo) |
 | Plataformas | Web GUI (doble cara: host + navegador) |
 | Modelo | Cualquiera (solo UI — sin tráfico de modelo, sin eventos de sesión) |

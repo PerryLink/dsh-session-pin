@@ -24,7 +24,7 @@
 
 | Surface | Status |
 |---|---|
-| Harness | DeepSeek Harness `0.1.0-rc.6` (client packages `0.1.0-rc.6`) |
+| Harness | DeepSeek Harness `0.1.0-rc.8` (client packages `0.1.0-rc.8`) |
 | Node | `>= 22` (development floor) |
 | Platforms | Web GUI (dual-face: host + browser) |
 | Model | Any (UI-only — no model traffic, no session events) |
