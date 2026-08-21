@@ -22,7 +22,7 @@ body:
     attributes:
       label: DeepSeek Harness version
       description: The DSH generation you are running (see the About dialog, or `dsh --version`).
-      placeholder: 'e.g. 0.1.0-rc.6, or a commit hash for newer builds'
+      placeholder: 'e.g. 0.1.0-rc.8, or a commit hash for newer builds'
     validations:
       required: true
   - type: input
