@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] - 2026-08-22
+
+### Changed
+
+- **DeepSeek Harness rc.2 compatibility**: every `@deepseek-ai/dsh-*` development dependency moves from `0.1.0-rc.8` to the exact `0.1.1-rc.2`, and the workshop manifest, READMEs, compat workflow, and `minimumReleaseAgeExclude` declare `0.1.1-rc.2`. No plugin code changed — all gates (typecheck, unit tests, coverage, lint, readme sync, build, self-contained, artifacts) pass against the rc.2 family, and the bundle mounts in a real rc.2 headless profile completing a keyless mock-LLM round trip.
+
 ## [0.4.2] - 2026-08-21
 
 ### Changed
