@@ -1,6 +1,7 @@
 <div align="center">
 
 # 📌 dsh-session-pin
+[![Gitee](https://img.shields.io/badge/Gitee-mirror-c71d23?logo=gitee)](https://gitee.com/perrylink/dsh-session-pin)
 
 **Pin sessions and workspaces to the top of the DeepSeek Harness sidebar with per-pin row colors.**
 
