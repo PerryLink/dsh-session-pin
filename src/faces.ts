@@ -50,6 +50,27 @@ export interface PinReadFace {
 }
 
 /**
+ * Organizer write face the pinned panel consumes: board lifecycle, pin→board
+ * assignment, entity tagging, and saved views. `PinController` satisfies it.
+ */
+export interface PinOrganizerFace extends PinReadFace {
+  /** Create a board (or rename when the id exists). */
+  createBoard(id: string, name: string): Promise<void>
+  /** Rename an existing board. */
+  renameBoard(id: string, name: string): Promise<void>
+  /** Remove a board; its pins fall back to the ungrouped section. */
+  removeBoard(id: string): Promise<void>
+  /** Persist a drag-reordered board sequence. */
+  reorderBoards(orderedIds: readonly string[]): Promise<void>
+  /** Assign one pinned entity to a board ('' ungroups). */
+  assignBoard(pinId: string, boardId: string): Promise<void>
+  /** Set one entity's tags (empty list removes the entry). */
+  setTags(id: string, tags: readonly string[]): Promise<void>
+  /** Save a filter view (same id replaces). */
+  saveView(view: import('./navigator.ts').SavedView): Promise<void>
+}
+
+/**
  * Optional log-backed write channel (the upstream `session.setPinned` RPC).
  * Absent on baselines without it; a failing remote disables itself until the
  * next connection generation re-enables it. Workspace pins and colors never
@@ -93,6 +114,12 @@ export type PinKey =
   | 'panelSessions'
   | 'panelWorkspaces'
   | 'footerTitle'
+  | 'ungrouped'
+  | 'manageRow'
+  | 'boardLabel'
+  | 'tagsLabel'
+  | 'save'
+  | 'close'
 
 /** Translate one plugin dictionary key (bound locale or English fallback). */
 export type PinTranslate = (key: PinKey) => string

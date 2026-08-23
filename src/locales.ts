@@ -32,6 +32,12 @@ export const ENGLISH: Record<PinKey, string> = {
   panelSessions: 'Sessions',
   panelWorkspaces: 'Workspaces',
   footerTitle: 'Pinned sessions',
+  ungrouped: 'Ungrouped',
+  manageRow: 'Assign board or tags',
+  boardLabel: 'Board',
+  tagsLabel: 'Tags',
+  save: 'Save',
+  close: 'Close',
 }
 
 /** Complete zh/en dictionaries for the locale registry. */
@@ -49,6 +55,12 @@ export const LOCALE_DICTS: { zh: Record<PinKey, string>; en: Record<PinKey, stri
     panelSessions: '会话',
     panelWorkspaces: '工作区',
     footerTitle: '已置顶的会话',
+    ungrouped: '未分组',
+    manageRow: '归组或设置标签',
+    boardLabel: '分组',
+    tagsLabel: '标签',
+    save: '保存',
+    close: '关闭',
   },
   en: ENGLISH,
 }

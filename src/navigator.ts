@@ -32,6 +32,14 @@ export interface BoardRegistry {
   readonly membership: Record<string, string>
 }
 
+/** One pinned-group bucket: a board's members, or the ungrouped remainder. */
+export interface BoardGroup {
+  /** Board id, or undefined for the ungrouped bucket. */
+  readonly boardId?: string
+  /** Member pin ids in pin order. */
+  readonly ids: string[]
+}
+
 /** One saved filter view. */
 export interface SavedView {
   /** View id (kebab-case). */
@@ -95,6 +103,26 @@ export function validateBoardName(name: string): string {
   return trimmed
 }
 
+/**
+ * Suggest a stable kebab-case board id from a display name, deduped against
+ * the given existing ids. Non-ASCII names collapse to a numeric-suffixed
+ * `board` base so two names can never collide silently.
+ * @param name - the display name.
+ * @param existingIds - current board ids to avoid.
+ * @returns the suggested id.
+ */
+export function suggestBoardId(name: string, existingIds: readonly string[] = []): string {
+  const root = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MAX_BOARD_NAME) || 'board'
+  if (!existingIds.includes(root)) return root
+  let suffix = 2
+  while (existingIds.includes(`${root}-${suffix}`)) suffix += 1
+  return `${root}-${suffix}`
+}
+
 /** Normalize an unknown board registry (settings wire or storage JSON). */
 export function normalizeBoards(value: unknown): BoardRegistry {
   const byId: Record<string, BoardRecord> = {}
@@ -152,6 +180,31 @@ export function removeBoard(boards: BoardRegistry, id: string): BoardRegistry {
     if (boardId !== id) membership[pinId] = boardId
   }
   return { byId, membership }
+}
+
+/**
+ * Renumber board order to the given id sequence (drag-reorder persistence).
+ * Boards absent from the sequence keep their relative order after the moved
+ * ones; membership is untouched.
+ * @param boards - current registry.
+ * @param orderedIds - the desired board order.
+ * @returns the renumbered registry.
+ */
+export function reorderBoards(boards: BoardRegistry, orderedIds: readonly string[]): BoardRegistry {
+  const byId: Record<string, BoardRecord> = {}
+  const placed = new Set<string>()
+  let order = 0
+  for (const id of orderedIds) {
+    const record = boards.byId[id]
+    if (record === undefined || placed.has(id)) continue
+    placed.add(id)
+    byId[id] = { name: record.name, order: order++ }
+  }
+  const rest = Object.entries(boards.byId)
+    .filter(([id]) => !placed.has(id))
+    .sort((a, b) => a[1].order - b[1].order)
+  for (const [id, record] of rest) byId[id] = { name: record.name, order: order++ }
+  return { byId, membership: boards.membership }
 }
 
 /** Assign one pin to a board (boardId '' = ungrouped). */
@@ -245,6 +298,33 @@ export function filterEntries(entries: readonly NavEntry[], filter: NavFilter): 
     if (filter.tags.length > 0 && !filter.tags.some(tag => entry.tags.includes(tag))) return false
     return true
   })
+}
+
+/**
+ * Bucket pinned ids by board in board order, with the ungrouped remainder
+ * last. Empty boards are omitted (only boards with pinned members render as
+ * groups). Each bucket preserves the input pin order.
+ * @param ids - pinned ids, newest pin first.
+ * @param boards - the board registry.
+ * @returns the ordered groups.
+ */
+export function groupPinnedByBoard(ids: readonly string[], boards: BoardRegistry): BoardGroup[] {
+  const buckets = new Map<string, string[]>()
+  for (const id of ids) {
+    const boardId = boards.membership[id] ?? ''
+    const bucket = buckets.get(boardId)
+    if (bucket === undefined) buckets.set(boardId, [id])
+    else bucket.push(id)
+  }
+  const ordered = Object.entries(boards.byId).sort((a, b) => a[1].order - b[1].order)
+  const groups: BoardGroup[] = []
+  for (const [boardId] of ordered) {
+    const bucket = buckets.get(boardId)
+    if (bucket !== undefined && bucket.length > 0) groups.push({ boardId, ids: bucket })
+  }
+  const ungrouped = buckets.get('')
+  if (ungrouped !== undefined && ungrouped.length > 0) groups.push({ boardId: undefined, ids: ungrouped })
+  return groups
 }
 
 /**

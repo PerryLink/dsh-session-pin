@@ -25,6 +25,14 @@ export const PANEL_ROW_CLASS = '__dsh-session-pin-panel-row__'
 export const PANEL_SECTION_CLASS = '__dsh-session-pin-panel-section__'
 /** Overlay panel row color dot. */
 export const PANEL_DOT_CLASS = '__dsh-session-pin-panel-dot__'
+/** Overlay panel board-group header (collapsible). */
+export const PANEL_GROUP_CLASS = '__dsh-session-pin-panel-group__'
+/** Overlay panel board-group toggle chevron. */
+export const PANEL_GROUP_TOGGLE_CLASS = '__dsh-session-pin-panel-group-toggle__'
+/** Per-row manage button (assign board / edit tags). */
+export const MANAGE_CLASS = '__dsh-session-pin-manage__'
+/** Inline per-row board/tag editor. */
+export const PANEL_EDITOR_CLASS = '__dsh-session-pin-editor__'
 /** Row-level controls wrapper ([pin][swatch]) stamped by both render paths. */
 export const ROW_CONTROLS_CLASS = '__dsh-session-pin-row-controls__'
 /** Color-swatch button rendered after the pin badge. */
@@ -121,4 +129,30 @@ export const STYLE_TEXT = [
   `span.${PANEL_DOT_CLASS}{width:9px;height:9px;border-radius:50%;flex:none;`,
   'border:1.5px solid #8b949e;background-color:transparent;',
   '}',
+  // Board-group header: collapsible, uppercase like the section headings.
+  `button.${PANEL_GROUP_CLASS}{`,
+  'all:unset;display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;',
+  'padding:3px 8px;border-radius:6px;cursor:pointer;font-size:11px;letter-spacing:.4px;',
+  'text-transform:uppercase;color:#8b949e;',
+  '}',
+  `button.${PANEL_GROUP_CLASS}:hover{background:rgba(140,149,159,.12);color:#e6edf3;}`,
+  `span.${PANEL_GROUP_TOGGLE_CLASS}{width:12px;text-align:center;flex:none;}`,
+  // Per-row manage button: hidden until the row hovers / is keyboard focused.
+  `button.${MANAGE_CLASS}{`,
+  CONTROL_STYLE,
+  'width:16px;height:16px;margin-left:auto;opacity:0;font-size:12px;',
+  '}',
+  `div.${PANEL_ROW_CLASS}:hover button.${MANAGE_CLASS},`,
+  `button.${MANAGE_CLASS}:focus-visible{opacity:1;}`,
+  `button.${MANAGE_CLASS}:hover{color:#e6edf3;background-color:rgba(140,149,159,.12);}`,
+  // Inline per-row board/tag editor.
+  `div.${PANEL_EDITOR_CLASS}{`,
+  'display:flex;flex-direction:column;gap:4px;padding:6px 8px;margin:0 4px 4px;',
+  'border:1px solid #30363d;border-radius:6px;background:#10151b;',
+  '}',
+  `div.${PANEL_EDITOR_CLASS} select,div.${PANEL_EDITOR_CLASS} input{`,
+  'all:unset;box-sizing:border-box;width:100%;padding:3px 6px;border-radius:4px;',
+  'background:#1f2428;border:1px solid #3d444d;color:#e6edf3;font-size:12px;',
+  '}',
+  `div.${PANEL_EDITOR_CLASS} label{font-size:10px;color:#8b949e;letter-spacing:.4px;text-transform:uppercase;}`,
 ].join('')

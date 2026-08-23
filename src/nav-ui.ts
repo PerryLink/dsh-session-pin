@@ -13,7 +13,7 @@
 
 import type { PinController } from './pin-controller.ts'
 import {
-  filterEntries, gotoMatches, summarizeHealth, sanitizeLabel,
+  filterEntries, gotoMatches, suggestBoardId, summarizeHealth, sanitizeLabel,
   type HealthEventFace, type NavEntry, type NavFilter,
 } from './navigator.ts'
 import { PANEL_CLASS, PANEL_ROW_CLASS } from './pin-ui-shared.ts'
@@ -64,6 +64,7 @@ function ensureBarStyle(): void {
     'background:#10151b;border:1px solid #3d444d;color:#e6edf3;font-size:12px;',
     '}',
     `div.${BAR_CLASS}chips{display:flex;flex-wrap:wrap;gap:4px;}`,
+    `span.${BAR_CLASS}chipwrap{display:inline-flex;align-items:center;gap:2px;}`,
     `div.${PANEL_ROW_CLASS} span.${BAR_CLASS}health{display:block;margin-left:auto;font-size:10px;color:#8b949e;white-space:nowrap;}`,
   ].join('\n')
   document.head.appendChild(style)
@@ -87,6 +88,7 @@ export function mountNavigator(args: {
   let disposed = false
   let filter: NavFilter = { text: '', tags: [], board: undefined }
   let boardNames: Record<string, string> = {}
+  let draggingBoardId: string | undefined
 
   const panelRoot = (): HTMLElement | null => document.querySelector(`div.${PANEL_CLASS}`)
 
@@ -136,6 +138,8 @@ export function mountNavigator(args: {
     const chips = document.createElement('div')
     chips.className = `${BAR_CLASS}chips`
     const boardChip = (label: string, boardId: string | undefined): void => {
+      const wrap = document.createElement('span')
+      wrap.className = `${BAR_CLASS}chipwrap`
       const button = document.createElement('button')
       button.type = 'button'
       button.className = boardId === filter.board ? `${CHIP_CLASS} ${CHIP_ACTIVE_CLASS}` : CHIP_CLASS
@@ -145,7 +149,55 @@ export function mountNavigator(args: {
         applyFilter()
         renderBar()
       })
-      chips.appendChild(button)
+      wrap.appendChild(button)
+      if (boardId !== undefined) {
+        button.draggable = true
+        button.addEventListener('dragstart', (event) => {
+          draggingBoardId = boardId
+          const dataTransfer = (event as DragEvent).dataTransfer
+          if (dataTransfer != null) dataTransfer.effectAllowed = 'move'
+        })
+        button.addEventListener('dragover', (event) => {
+          event.preventDefault()
+        })
+        button.addEventListener('drop', (event) => {
+          event.preventDefault()
+          const source = draggingBoardId
+          draggingBoardId = undefined
+          if (source === undefined || source === boardId) return
+          const ordered = Object.entries(pin.getBoards().byId).sort((a, b) => a[1].order - b[1].order).map(([id]) => id)
+          const without = ordered.filter(id => id !== source)
+          without.splice(Math.max(0, without.indexOf(boardId)), 0, source)
+          void pin.reorderBoards(without).then(() => renderBar())
+        })
+        const rename = document.createElement('button')
+        rename.type = 'button'
+        rename.className = CHIP_CLASS
+        rename.textContent = '✎'
+        rename.title = 'Rename board'
+        rename.addEventListener('click', (event) => {
+          event.stopPropagation()
+          const name = (window.prompt('Board name', label) ?? '').trim()
+          if (name === '') return
+          void pin.renameBoard(boardId, name).then(() => renderBar())
+        })
+        const remove = document.createElement('button')
+        remove.type = 'button'
+        remove.className = CHIP_CLASS
+        remove.textContent = '✕'
+        remove.title = 'Delete board'
+        remove.addEventListener('click', (event) => {
+          event.stopPropagation()
+          if (!window.confirm(`Delete board "${label}"?`)) return
+          void pin.removeBoard(boardId).then(() => {
+            if (filter.board === boardId) filter = { ...filter, board: undefined }
+            applyFilter()
+            renderBar()
+          })
+        })
+        wrap.append(rename, remove)
+      }
+      chips.appendChild(wrap)
     }
     if (options.enableBoards) {
       boardChip('All', undefined)
@@ -154,6 +206,17 @@ export function mountNavigator(args: {
         boardNames[id] = board.name
         boardChip(board.name, id)
       }
+      const add = document.createElement('button')
+      add.type = 'button'
+      add.className = CHIP_CLASS
+      add.textContent = '+ board'
+      add.addEventListener('click', () => {
+        const name = (window.prompt('Board name') ?? '').trim()
+        if (name === '') return
+        const existing = Object.keys(pin.getBoards().byId)
+        void pin.createBoard(suggestBoardId(name, existing), name).then(() => renderBar())
+      })
+      chips.appendChild(add)
     }
     bar.appendChild(chips)
     if (options.enableTags) {

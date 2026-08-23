@@ -27,10 +27,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
-import type { PinReadFace, PinTranslate, PinUiState, SessionListFace, WorkspaceListFace } from './faces.ts'
+import type { PinOrganizerFace, PinReadFace, PinTranslate, PinUiState, SessionListFace, WorkspaceListFace } from './faces.ts'
+import { groupPinnedByBoard, type BoardRegistry } from './navigator.ts'
 import {
-  FOOTER_CLASS, HEADER_CLASS, PANEL_CLASS, PANEL_DOT_CLASS, PANEL_ROW_CLASS, PANEL_SECTION_CLASS,
-  PIN_SVG, PINNED_CLASS,
+  FOOTER_CLASS, HEADER_CLASS, MANAGE_CLASS, PANEL_CLASS, PANEL_DOT_CLASS, PANEL_EDITOR_CLASS,
+  PANEL_GROUP_CLASS, PANEL_GROUP_TOGGLE_CLASS, PANEL_ROW_CLASS, PANEL_SECTION_CLASS, PIN_SVG, PINNED_CLASS,
 } from './pin-ui-shared.ts'
 
 /** Open/close observable for the pinned-sessions panel. */
@@ -145,7 +146,7 @@ function PinFooterAction(props: FooterActionProps): React.ReactNode {
 
 /** Panel share. */
 interface PanelInjected {
-  pin: PinReadFace
+  pin: PinOrganizerFace
   ui: PinUiState
   sessions: SessionListFace
   workspaces: WorkspaceListFace
@@ -156,7 +157,12 @@ interface PanelInjected {
 
 type PanelProps = ComposedProps<'shell.overlay', string, never, undefined, PanelInjected>
 
-/** One panel row: pin glyph, color dot, title; click opens and closes the panel.
+/** The display name of one board (or the ungrouped label for the fallback bucket). */
+function boardName(boards: BoardRegistry, boardId: string | undefined, ungroupedLabel: string): string {
+  return boardId === undefined ? ungroupedLabel : (boards.byId[boardId]?.name ?? boardId)
+}
+
+/** One panel row: pin glyph, color dot, title, and the per-row manage button.
  *  Navigator attributes (id/title/tags/board) let the nav bar filter and
  *  annotate rows without entering React's tree. */
 function panelRow(
@@ -164,7 +170,9 @@ function panelRow(
   title: string,
   color: string | undefined,
   onClick: () => void,
-  navigator?: { id: string; tags: readonly string[]; boardId?: string; sessionId?: string },
+  navigator: { id: string; tags: readonly string[]; boardId?: string; sessionId?: string },
+  manageLabel: string,
+  onManage: () => void,
 ): React.ReactNode {
   return React.createElement('div', {
     key,
@@ -172,13 +180,11 @@ function panelRow(
     role: 'button',
     tabIndex: 0,
     title,
-    ...navigator === undefined ? {} : {
-      'data-id': navigator.id,
-      'data-title': title,
-      'data-tags': navigator.tags.join(' '),
-      ...navigator.boardId === undefined ? {} : { 'data-board': navigator.boardId },
-      ...navigator.sessionId === undefined ? {} : { 'data-session-id': navigator.sessionId },
-    },
+    'data-id': navigator.id,
+    'data-title': title,
+    'data-tags': navigator.tags.join(' '),
+    ...navigator.boardId === undefined ? {} : { 'data-board': navigator.boardId },
+    ...navigator.sessionId === undefined ? {} : { 'data-session-id': navigator.sessionId },
     onClick,
     onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key !== 'Enter' && event.key !== ' ') return
@@ -189,21 +195,97 @@ function panelRow(
     React.createElement('span', { dangerouslySetInnerHTML: { __html: PIN_SVG } }),
     React.createElement('span', { className: PANEL_DOT_CLASS, ...(color === undefined ? {} : { style: { background: color, borderColor: color } }) }),
     React.createElement('span', null, title),
+    React.createElement('button', {
+      type: 'button',
+      className: MANAGE_CLASS,
+      title: manageLabel,
+      'aria-label': manageLabel,
+      onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation()
+        onManage()
+      },
+    }, '⋯'),
+  )
+}
+
+/** Collapsible board-group header: board name + member count + toggle chevron. */
+function groupHeader(key: string, label: string, count: number, collapsed: boolean, onToggle: () => void): React.ReactNode {
+  return React.createElement('button', {
+    key,
+    type: 'button',
+    className: PANEL_GROUP_CLASS,
+    onClick: onToggle,
+    'aria-expanded': !collapsed,
+  },
+    React.createElement('span', { className: PANEL_GROUP_TOGGLE_CLASS }, collapsed ? '▸' : '▾'),
+    React.createElement('span', null, `${label} (${count})`),
+  )
+}
+
+/** Inline per-row board/tag editor (board select assigns immediately; tags save on Enter/✓). */
+function RowEditor(props: {
+  id: string
+  boards: BoardRegistry
+  currentBoard: string | undefined
+  currentTags: readonly string[]
+  pin: PinOrganizerFace
+  t: PinTranslate
+  onClose: () => void
+}): React.ReactNode {
+  const { id, boards, currentBoard, currentTags, pin, t, onClose } = props
+  const [text, setText] = React.useState(currentTags.join(', '))
+  const boardOptions = Object.entries(boards.byId).sort((a, b) => a[1].order - b[1].order)
+  const save = (): void => {
+    void pin.setTags(id, text.split(',').map(tag => tag.trim()).filter(tag => tag !== ''))
+    onClose()
+  }
+  return React.createElement('div', { className: PANEL_EDITOR_CLASS, onClick: (event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation() },
+    React.createElement('label', null, t('boardLabel')),
+    React.createElement('select', {
+      value: currentBoard ?? '',
+      onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+        void pin.assignBoard(id, event.target.value)
+      },
+    },
+      React.createElement('option', { value: '' }, t('ungrouped')),
+      boardOptions.map(([boardId, board]) => React.createElement('option', { key: boardId, value: boardId }, board.name)),
+    ),
+    React.createElement('label', null, t('tagsLabel')),
+    React.createElement('input', {
+      value: text,
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+        setText(event.target.value)
+      },
+      onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== 'Enter') return
+        event.preventDefault()
+        save()
+      },
+    }),
+    React.createElement('div', { style: { display: 'flex', gap: '4px' } },
+      React.createElement('button', { type: 'button', onClick: save, 'aria-label': t('save') }, '✓'),
+      React.createElement('button', { type: 'button', onClick: onClose, 'aria-label': t('close') }, '✕'),
+    ),
   )
 }
 
 /**
- * The pinned-sessions panel: pinned sessions and pinned workspaces in pin
- * order, newest first; clicking one opens it (and closes the panel). Escape
- * or a click outside closes it; empty state shows the placeholder copy.
+ * The pinned-sessions panel: pinned sessions and pinned workspaces, grouped
+ * by board (collapsible) with the ungrouped remainder last; clicking a row
+ * opens it (and closes the panel). Escape or a click outside closes it; the
+ * empty state shows the placeholder copy.
  */
 function PinPanel(props: PanelProps): React.ReactNode {
   const { pin, ui, sessions, workspaces, t, openSession, openWorkspace } = props
   const open = React.useSyncExternalStore(ui.subscribe, () => ui.getSnapshot().open)
   const pinned = React.useSyncExternalStore(pin.subscribe, () => pin.getPinned())
   const workspacePinned = React.useSyncExternalStore(pin.subscribe, () => pin.getWorkspacePinned())
+  const boards = React.useSyncExternalStore(pin.subscribe, () => pin.getBoards())
+  const tags = React.useSyncExternalStore(pin.subscribe, () => pin.getTags())
   const list = React.useSyncExternalStore(sessions.subscribe, () => sessions.getSnapshot())
   const workspaceList = React.useSyncExternalStore(workspaces.subscribe, () => workspaces.getSnapshot())
+  const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({})
+  const [editing, setEditing] = React.useState<string | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
@@ -226,35 +308,65 @@ function PinPanel(props: PanelProps): React.ReactNode {
 
   if (!open) return null
   const rows: React.ReactNode[] = []
-  const boards = pin.getBoards()
-  const tags = pin.getTags()
-  const navFor = (id: string, sessionId?: string) => ({
-    id,
-    tags: tags[id] ?? [],
-    ...boards.membership[id] === undefined ? {} : { boardId: boards.membership[id] },
-    ...sessionId === undefined ? {} : { sessionId },
-  })
-  if (workspacePinned.length > 0) {
-    rows.push(React.createElement('div', { key: '__ws-head__', className: PANEL_SECTION_CLASS }, t('panelWorkspaces')))
-    const byId = new Map(workspaceList.items.map(item => [item.workspaceId, item.title]))
-    for (const id of workspacePinned) {
-      const title = byId.get(id) ?? id
-      rows.push(panelRow(`w:${id}`, title, pin.getWorkspaceColor(id), () => {
-        openWorkspace(id)
-        ui.setOpen(false)
-      }, navFor(id)))
+  const wsById = new Map(workspaceList.items.map(item => [item.workspaceId, item.title]))
+
+  const renderSection = (
+    sectionKey: string,
+    sectionLabel: string,
+    ids: readonly string[],
+    titleOf: (id: string) => string,
+    colorOf: (id: string) => string | undefined,
+    openRow: (id: string) => void,
+    isSession: boolean,
+  ): void => {
+    if (ids.length === 0) return
+    rows.push(React.createElement('div', { key: `${sectionKey}-head`, className: PANEL_SECTION_CLASS }, sectionLabel))
+    for (const group of groupPinnedByBoard(ids, boards)) {
+      const groupBoardId = group.boardId
+      const groupKey = `${sectionKey}:${groupBoardId ?? 'ungrouped'}`
+      const isCollapsed = collapsed[groupKey] === true
+      rows.push(groupHeader(groupKey, boardName(boards, groupBoardId, t('ungrouped')), group.ids.length, isCollapsed, () => {
+        setCollapsed(prev => ({ ...prev, [groupKey]: !isCollapsed }))
+      }))
+      if (isCollapsed) continue
+      for (const id of group.ids) {
+        const title = titleOf(id)
+        rows.push(panelRow(
+          `${sectionKey}:${id}`,
+          title,
+          colorOf(id),
+          () => {
+            openRow(id)
+            ui.setOpen(false)
+          },
+          {
+            id,
+            tags: tags[id] ?? [],
+            ...boards.membership[id] === undefined ? {} : { boardId: boards.membership[id] },
+            ...isSession ? { sessionId: id } : {},
+          },
+          t('manageRow'),
+          () => setEditing(editing === id ? null : id),
+        ))
+        if (editing === id) {
+          rows.push(React.createElement(RowEditor, {
+            key: `edit:${sectionKey}:${id}`,
+            id,
+            boards,
+            currentBoard: boards.membership[id],
+            currentTags: tags[id] ?? [],
+            pin,
+            t,
+            onClose: () => setEditing(null),
+          }))
+        }
+      }
     }
   }
-  if (pinned.length > 0) {
-    rows.push(React.createElement('div', { key: '__s-head__', className: PANEL_SECTION_CLASS }, t('panelSessions')))
-    for (const id of pinned) {
-      const title = list.byId[id]?.displayTitle ?? id
-      rows.push(panelRow(`s:${id}`, title, pin.getColor(id), () => {
-        openSession(id)
-        ui.setOpen(false)
-      }, navFor(id, id)))
-    }
-  }
+
+  renderSection('w', t('panelWorkspaces'), workspacePinned, id => wsById.get(id) ?? id, id => pin.getWorkspaceColor(id), openWorkspace, false)
+  renderSection('s', t('panelSessions'), pinned, id => list.byId[id]?.displayTitle ?? id, id => pin.getColor(id), openSession, true)
+
   if (rows.length === 0) {
     rows.push(React.createElement('div', { key: '__empty__', className: PANEL_ROW_CLASS }, t('panelEmpty')))
   }
@@ -269,7 +381,7 @@ function PinPanel(props: PanelProps): React.ReactNode {
 /** Dependencies of the slot registrations (glue supplies the runtime faces). */
 export interface RegisterSlotsDeps {
   ctx: Pick<Context, 'slots'>
-  pin: PinReadFace
+  pin: PinOrganizerFace
   ui: PinUiState
   sessions: SessionListFace
   workspaces: WorkspaceListFace

@@ -22,7 +22,7 @@
  */
 import { nextPaletteColor, normalizePins, pruneColors, prunePins } from './pin-core.ts'
 import {
-  assignPinToBoard, removeBoard, saveView, setEntityTags, upsertBoard,
+  assignPinToBoard, removeBoard, reorderBoards as reorderBoardRegistry, saveView, setEntityTags, upsertBoard,
   type BoardRegistry, type SavedView,
 } from './navigator.ts'
 import type { PinRemoteLike } from './faces.ts'
@@ -196,6 +196,23 @@ export class PinController {
    */
   async removeBoard(id: string): Promise<void> {
     const boards = removeBoard(this.snapshot.boards, id)
+    await this.store.write({ boards })
+    this.adopt({ boards })
+  }
+
+  /** Rename an existing board (a missing id creates it, mirroring createBoard).
+   * @param id - board id.
+   * @param name - new display name.
+   */
+  async renameBoard(id: string, name: string): Promise<void> {
+    return this.createBoard(id, name)
+  }
+
+  /** Persist a drag-reordered board sequence (unknown ids keep trailing order).
+   * @param orderedIds - the desired board order.
+   */
+  async reorderBoards(orderedIds: readonly string[]): Promise<void> {
+    const boards = reorderBoardRegistry(this.snapshot.boards, orderedIds)
     await this.store.write({ boards })
     this.adopt({ boards })
   }
