@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Package standards**: declare `packageManager: pnpm@11.7.0` and `engines.node: ^22.19.0 || >=24.0.0` in `package.json` to match the compat workflow's toolchain and the ecosystem engine floor. Metadata only — no plugin behavior changed.
+
 ## [0.4.3] - 2026-08-22
 
 ### Changed
