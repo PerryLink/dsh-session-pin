@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest'
 import {
-  assignPinToBoard, boardOf, emptyBoards, filterEntries, gotoMatches, normalizeBoards, normalizeTags,
-  normalizeViews, removeBoard, sanitizeLabel, saveView, setEntityTags, summarizeHealth, upsertBoard, validateBoardName,
+  assignPinToBoard, boardOf, emptyBoards, filterEntries, gotoMatches, groupPinnedByBoard, normalizeBoards,
+  normalizeTags, normalizeViews, removeBoard, reorderBoards, sanitizeLabel, saveView, setEntityTags,
+  suggestBoardId, summarizeHealth, upsertBoard, validateBoardName,
 } from '../src/navigator.ts'
 
 describe('boards', () => {
@@ -35,6 +36,43 @@ describe('boards', () => {
     expect(normalizeBoards({ byId: { a: { name: 'A', order: 0 }, bad: { name: '', order: 1 } }, membership: { s: 'a', x: 'missing' } }))
       .toEqual({ byId: { a: { name: 'A', order: 0 } }, membership: { s: 'a' } })
     expect(normalizeBoards('junk')).toEqual(emptyBoards())
+  })
+
+  it('suggests deduped kebab-case board ids from names', () => {
+    expect(suggestBoardId('This Week Release')).toBe('this-week-release')
+    expect(suggestBoardId('  ')).toBe('board')
+    expect(suggestBoardId('本周发布')).toBe('board')
+    expect(suggestBoardId('release', ['release'])).toBe('release-2')
+    expect(suggestBoardId('release', ['release', 'release-2', 'release-3'])).toBe('release-4')
+  })
+
+  it('renumbers board order from a drag sequence, keeping unlisted boards after', () => {
+    let boards = emptyBoards()
+    boards = upsertBoard(boards, 'a', 'A')
+    boards = upsertBoard(boards, 'b', 'B')
+    boards = upsertBoard(boards, 'c', 'C')
+    const reordered = reorderBoards(boards, ['c', 'a'])
+    expect(Object.entries(reordered.byId).sort((x, y) => x[1].order - y[1].order).map(([id]) => id)).toEqual(['c', 'a', 'b'])
+    expect(reordered.byId['b']?.order).toBe(2)
+    expect(reordered.membership).toBe(boards.membership)
+    expect(reorderBoards(boards, ['missing', 'c']).byId['c']?.order).toBe(0)
+  })
+
+  it('buckets pinned ids by board in order with the ungrouped remainder last', () => {
+    let boards = emptyBoards()
+    boards = upsertBoard(boards, 'work', 'Work')
+    boards = upsertBoard(boards, 'study', 'Study')
+    boards = assignPinToBoard(boards, 's2', 'work')
+    boards = assignPinToBoard(boards, 's3', 'study')
+    expect(groupPinnedByBoard(['s1', 's2', 's3', 's4'], boards)).toEqual([
+      { boardId: 'work', ids: ['s2'] },
+      { boardId: 'study', ids: ['s3'] },
+      { boardId: undefined, ids: ['s1', 's4'] },
+    ])
+    // Empty boards are omitted from the rendered groups.
+    expect(groupPinnedByBoard([], boards)).toEqual([])
+    const noMembers = upsertBoard(boards, 'empty', 'Empty')
+    expect(groupPinnedByBoard(['s1'], noMembers)).toEqual([{ boardId: undefined, ids: ['s1'] }])
   })
 })
 

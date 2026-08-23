@@ -19,6 +19,12 @@ const T: PinTranslate = key => ({
   panelSessions: 'Sessions',
   panelWorkspaces: 'Workspaces',
   footerTitle: 'Pinned sessions',
+  ungrouped: 'Ungrouped',
+  manageRow: 'Manage',
+  boardLabel: 'Board',
+  tagsLabel: 'Tags',
+  save: 'Save',
+  close: 'Close',
 }[key])
 
 /** Flush the overlay's setTimeout-based render pass. */
