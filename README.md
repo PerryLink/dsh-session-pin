@@ -52,8 +52,8 @@
 
 Four browser-local capabilities organize multi-session work on top of pinning. All state rides the same `session-pin` store (per-browser; nothing is uploaded), and each has a Config switch.
 
-- **Boards** — pins join named groups; the pinned panel shows one chip per board (plus "All") that filters the list.
-- **Tags & views** — entities carry up to 8 tags (≤24 chars each); the filter bar matches text and tags, and any filter state saves as a named view (up to 20) for one-click switching.
+- **Boards** — pins join named groups; the board chip row creates, renames, and deletes boards and drag-reorders them (order persists per-browser), while the pinned panel groups each board's pins under a collapsible header.
+- **Tags & views** — entities carry up to 8 tags (≤24 chars each), set per row from the panel's manage button (which also assigns the pin's board); the filter bar matches text and tags, and any filter state saves as a named view (up to 20) for one-click switching.
 - **Health summary** — each pinned session row appends a read-only, sanitized line (`N msgs · you|ai · relative time`) derived from the public session snapshot — counts and directions only, never content.
 - **`/goto <keyword>`** — a composer line starting with `/goto` plus Enter jumps: a unique title/tag match opens it, several matches list in a prompt, none explains. The command line never reaches the model.
 
@@ -109,7 +109,7 @@ All tunables are Schemastery `Config` fields (changeable from cordis.yml). `cord
 |---|---|---|
 | `[pin][swatch]` row controls | UI slot / DOM overlay | Hover controls on every session and workspace row |
 | Session header toggle | UI slot | The same pin control in the header action row, keyed by session id |
-| Sidebar foot + pinned panel | UI slot / overlay | Lists pinned workspaces and sessions (newest pin first) with color dots |
+| Sidebar foot + pinned panel | UI slot / overlay | Lists pinned workspaces and sessions, grouped by board (collapsible) with per-row board/tag manage and color dots |
 | `/goto <keyword>` | command | Composer quick-jump by title/tag; the line never reaches the model |
 | `session-pin` settings namespace | host service | Durable per-browser store for pins, colors, and organizer state |
 

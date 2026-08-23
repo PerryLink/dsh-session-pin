@@ -51,8 +51,8 @@ O `dsh-session-pin` mantém no topo da barra lateral as conversas que importam e
 
 Quatro capacidades locais do navegador organizam o trabalho multi-sessão por cima da fixação. Todo o estado vive no mesmo armazenamento `session-pin` (por navegador; nada é enviado) e cada uma tem um interruptor de Config.
 
-- **Boards** — pins em grupos nomeados; o painel mostra um chip por board (mais «All») que filtra a lista.
-- **Tags e vistas** — as entidades levam até 8 tags (≤24 caracteres cada); a barra filtra por texto e tags, e qualquer filtro é salvo como vista nomeada (até 20) para trocar com um clique.
+- **Boards** — pins em grupos nomeados; a linha de chips cria, renomeia e exclui boards e os reordena arrastando (a ordem persiste por navegador), enquanto o painel agrupa os pins de cada board sob um cabeçalho recolhível.
+- **Tags e vistas** — as entidades levam até 8 tags (≤24 caracteres cada), definidas por linha no botão de gerir do painel (que também atribui o board do pin); a barra filtra por texto e tags, e qualquer filtro é salvo como vista nomeada (até 20) para trocar com um clique.
 - **Resumo de saúde** — cada linha de sessão fixada acrescenta uma linha de somente leitura e higienizada (`N msgs · you|ai · tempo relativo`) derivada da snapshot pública da sessão — apenas contagens e direções, nunca conteúdo.
 - **`/goto <palavra>`** — uma linha do compositor começando com `/goto` mais Enter salta: uma correspondência única abre, várias listam, nenhuma explica. A linha de comando nunca chega ao modelo.
 
@@ -108,7 +108,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 |---|---|---|
 | Controles de linha `[pin][cor]` | Slot de UI / sobreposição DOM | Controles ao passar o mouse em cada linha de sessão e espaço de trabalho |
 | Alternador do cabeçalho da sessão | Slot de UI | O mesmo controle na linha de ações do cabeçalho, indexado por id de sessão |
-| Rodapé da barra lateral + painel de fixados | Slot de UI / sobreposição | Lista espaços e sessões fixados (o pin mais recente primeiro) com pontos de cor |
+| Rodapé da barra lateral + painel de fixados | Slot de UI / sobreposição | Lista espaços e sessões fixados, agrupados por board (recolhível) com gestão de board/tags por linha e pontos de cor |
 | `/goto <palavra>` | command | Salto rápido do compositor por título/tag; a linha nunca chega ao modelo |
 | Namespace de settings `session-pin` | serviço host | Armazenamento durável por navegador de pins, cores e estado do organizador |
 

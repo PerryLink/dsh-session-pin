@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- **Board/tag write UI**: the board chip row now creates, renames, and deletes boards and drag-reorders them (order persists per-browser), and every pinned panel row gains a manage button that assigns its board and edits its tags — closing the organizer's write-side gap (`PinController.createBoard`/`renameBoard`/`removeBoard`/`assignBoard`/`setTags` are now reachable from the GUI).
+- **Collapsible board grouping**: the pinned panel groups its workspaces and sessions by board under collapsible headers (ungrouped pins last), driven by the new `groupPinnedByBoard`/`reorderBoards`/`suggestBoardId` pure helpers. Existing pins, colors, and the four pin surfaces are unchanged.
+
 ### Changed
 
 - **Package standards**: declare `packageManager: pnpm@11.7.0` and `engines.node: ^22.19.0 || >=24.0.0` in `package.json` to match the compat workflow's toolchain and the ecosystem engine floor. Metadata only — no plugin behavior changed.

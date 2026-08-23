@@ -51,8 +51,8 @@
 
 Cuatro capacidades locales del navegador organizan el trabajo multi-sesión por encima del fijado. Todo el estado vive en el mismo almacén `session-pin` (por navegador; nada se sube) y cada una tiene un interruptor de Config.
 
-- **Boards** — los pines se agrupan con nombre; el panel muestra un chip por board (más «All») que filtra la lista.
-- **Etiquetas y vistas** — las entidades llevan hasta 8 etiquetas (≤24 caracteres cada una); la barra filtra por texto y etiquetas, y cualquier filtro se guarda como vista con nombre (hasta 20) para cambiar con un clic.
+- **Boards** — los pines se agrupan con nombre; la fila de chips crea, renombra y elimina boards y los reordena arrastrando (el orden persiste por navegador), mientras el panel agrupa los pines de cada board bajo una cabecera plegable.
+- **Etiquetas y vistas** — las entidades llevan hasta 8 etiquetas (≤24 caracteres cada una), fijadas por fila desde el botón de gestionar del panel (que también asigna el board del pin); la barra filtra por texto y etiquetas, y cualquier filtro se guarda como vista con nombre (hasta 20) para cambiar con un clic.
 - **Resumen de salud** — cada fila de sesión fijada añade una línea de solo lectura y saneada (`N msgs · you|ai · tiempo relativo`) derivada de la instantánea pública de la sesión — solo conteos y direcciones, nunca contenido.
 - **`/goto <palabra>`** — una línea del compositor que empiece por `/goto` más Enter salta: una coincidencia única abre, varias se listan, ninguna lo explica. La línea de comando nunca llega al modelo.
 
@@ -108,7 +108,7 @@ Todas las opciones son campos Schemastery `Config` (modificables desde cordis.ym
 |---|---|---|
 | Controles de fila `[pin][color]` | Slot de UI / superposición DOM | Controles al pasar el cursor en cada fila de sesión y espacio de trabajo |
 | Interruptor de cabecera de sesión | Slot de UI | El mismo control en la fila de acciones de la cabecera, indexado por id de sesión |
-| Pie de barra lateral + panel de fijados | Slot de UI / superposición | Lista espacios y sesiones fijados (el pin más reciente primero) con puntos de color |
+| Pie de barra lateral + panel de fijados | Slot de UI / superposición | Lista espacios y sesiones fijados, agrupados por board (plegable) con gestión de board/etiquetas por fila y puntos de color |
 | `/goto <palabra>` | command | Salto rápido del compositor por título/etiqueta; la línea nunca llega al modelo |
 | Namespace de ajustes `session-pin` | servicio host | Almacén duradero por navegador de pines, colores y estado del organizador |
 
