@@ -5,19 +5,25 @@
  * (pinned session ids and pinned workspace ids) plus the per-level row-color
  * maps, and whose composition base carries the host policy (`maxPins`,
  * `reorderOnLoad`, `pruneStale`) so the browser half reads everything
- * through the same settings snapshot. This half owns no runtime behavior
- * beyond the registration.
+ * through the same settings snapshot.
  *
- * TODO(plugin): the canonical DSH residence for per-session UI metadata is a
- * log-backed `session/pin` event (like `session/title`) folded through a
- * session projection; once the upstream write channel (an RPC the browser can
- * call) exists, fold pinned ids from the logs and retire this namespace.
- * Until then the settings namespace is the durable store.
+ * Canonical residence (P0): when `enableLogBacking` is on, this half also
+ * mounts a projection reader over the `session/pin` event log (see
+ * `pin-log.ts`) — it folds live `session/event` events back into the pin set
+ * and mirrors the folded `pinned`/`colors` into the settings namespace, which
+ * then serves as the idempotent cache for the log-backed canonical state.
+ * The settings namespace (and the browser-local fallback) remain the compat +
+ * degradation path; the session log is authoritative when log-backing is
+ * enabled. Workspace pins, both color maps' workspace half, and the organizer
+ * metadata stay plugin-local state and never ride the session log.
+ *
  * @module dsh-session-pin
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { settingsNamespace, type SettingsRegisterOptions } from '@deepseek-ai/dsh-settings'
+import { settingsNamespace, type SettingsRegisterOptions, type SettingsScope } from '@deepseek-ai/dsh-settings'
+import { normalizeColors, normalizePins } from './pin-core.ts'
+import { PIN_EVENT, normalizePinEventValue, type PinLogValue } from './pin-log.ts'
 
 export const name = 'session-pin'
 
@@ -41,6 +47,15 @@ export type Config = {
   enableHealth: boolean
   /** Enable the `/goto <keyword>` composer command (fuzzy title/tag jump). */
   enableGoto: boolean
+  /**
+   * Gate the log-backed canonical pin residence: fold `session/pin` events
+   * into a projection and mirror the folded pin set + colors into the
+   * settings cache. Fail-closed default `false` — enable on builds that emit
+   * the `session/pin` event (upstream `session.setPinned` RPC or this
+   * plugin's own appender); on baselines without it the reader simply never
+   * folds and the settings store remains the durable path.
+   */
+  enableLogBacking: boolean
 }
 
 export const Config: z<Config> = z.object({
@@ -52,6 +67,7 @@ export const Config: z<Config> = z.object({
   enableViews: z.boolean().default(true),
   enableHealth: z.boolean().default(true),
   enableGoto: z.boolean().default(true),
+  enableLogBacking: z.boolean().default(false),
 })
 
 /** User-layer pin document shape mirrored by the browser half. */
@@ -95,6 +111,11 @@ const PinSchema = z.object({
   enableGoto: z.boolean().default(true),
 })
 
+/** Narrow host session-event sink (runtime-probed; `session/event` is a dsh-session event, not typed here). */
+interface SessionEventSink {
+  on(name: 'session/event', listener: (session: { id?: unknown }, event: unknown) => void): () => void
+}
+
 /**
  * Register the `session-pin` settings namespace. The policy fields ride the
  * composition base layer so the browser half reads them through the same
@@ -102,7 +123,9 @@ const PinSchema = z.object({
  * wire exposure (settings.* RPCs serve the namespace to browsers) on builds
  * whose settings service supports the option — the rc.6 baseline answers
  * `settings-not-exposed` and the browser half degrades to localStorage; the
- * cast crosses that version boundary once, at the call site.
+ * cast crosses that version boundary once, at the call site. When
+ * `enableLogBacking` is on, the returned scope also receives the folded
+ * `session/pin` projection (see {@link mountPinProjection}).
  * @param ctx - harness context exposing the settings service.
  * @param config - pin policy from the cordis.yml row.
  */
@@ -128,5 +151,51 @@ export function apply(ctx: Context, config: Config): void {
     applies: 'live' as const,
     expose: true,
   } as unknown as SettingsRegisterOptions<Record<string, unknown>>
-  ctx.settings.register(settingsNamespace('session-pin'), PinSchema, options)
+  const scope = ctx.settings.register(
+    settingsNamespace('session-pin'),
+    PinSchema,
+    options,
+  ) as unknown as SettingsScope<Record<string, unknown>>
+  if (config.enableLogBacking) mountPinProjection(ctx, scope)
+}
+
+/**
+ * Mount the log-backed projection reader: fold live `session/pin` events into
+ * the canonical pin set and mirror each folded session into the settings
+ * cache. The listener is owned by the plugin fiber (Cordis auto-disposes it),
+ * and the mirror is best-effort — a failed write is logged, never thrown.
+ * @param ctx - harness context (provides `logger` and the `session/event` bus).
+ * @param scope - the registered `session-pin` settings scope receiving the fold.
+ */
+function mountPinProjection(ctx: Context, scope: SettingsScope<Record<string, unknown>>): void {
+  const events = ctx as unknown as SessionEventSink
+  events.on('session/event', (session, event) => {
+    const id = session.id
+    if (typeof id !== 'string' || id.length === 0) return
+    const candidate = event as { type?: unknown; data?: unknown } | null | undefined
+    if (candidate?.type !== PIN_EVENT) return
+    const value = normalizePinEventValue(id, candidate.data)
+    if (value === undefined) return
+    void mirrorSessionPin(scope, value).catch((error: unknown) => {
+      ctx.logger.warn(`session-pin: pin projection mirror failed: ${String(error)}`)
+    })
+  })
+}
+
+/**
+ * Merge one folded session into the settings cache: pinning moves the session
+ * to the front of the pinned list, unpinning removes it, and a defined color
+ * sets or clears the row color — leaving every other session's state intact.
+ * @param scope - the registered settings scope.
+ * @param value - the folded whole-value pin state.
+ */
+async function mirrorSessionPin(scope: SettingsScope<Record<string, unknown>>, value: PinLogValue): Promise<void> {
+  const current = scope.get()
+  const pinned = value.pinned
+    ? [value.sessionId, ...normalizePins(current.pinned).filter(id => id !== value.sessionId)]
+    : normalizePins(current.pinned).filter(id => id !== value.sessionId)
+  const colors = normalizeColors(current.colors)
+  if (value.color === null) delete colors[value.sessionId]
+  else if (value.color !== undefined) colors[value.sessionId] = value.color
+  await scope.update({ pinned, colors })
 }

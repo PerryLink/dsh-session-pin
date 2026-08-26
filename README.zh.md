@@ -101,6 +101,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 | `enableViews` | `true` | 启用保存的过滤视图 |
 | `enableHealth` | `true` | 启用每个已置顶会话的健康摘要（只读、脱敏） |
 | `enableGoto` | `true` | 启用 `/goto <关键词>` 作曲器命令 |
+| `enableLogBacking` | `false` | 将 `session/pin` 事件折叠为日志支撑投影并镜像到 settings 缓存（fail-closed：启用后会话日志为权威来源） |
 
 ## Tools & surfaces
 
@@ -135,7 +136,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 ## Roadmap
 
 - 右键 / 行菜单「置顶」入口（需要核心行级菜单槽位；行徽标槽位已在上游落地）。
-- 规范驻留：日志支撑的 `session/pin` 事件 + `pin` 投影 + 写 RPC（上游）——届时 settings namespace 退役为持久层，插件改用 `useProjection('pin')`。
+- ~~规范驻留：日志支撑的 `session/pin` 事件 + `pin` 投影 + 写 RPC（上游）——届时 settings namespace 退役为持久层，插件改用 `useProjection('pin')`。~~ **已落地（P0）：** 插件现已内置 `session/pin` 事件 schema、纯投影折叠（`foldPinEvents`）、ignorable 门控追加缝（`PinLogAppender`）与 host 投影读取器（`enableLogBacking`），把实时 `session/pin` 事件折叠回 settings 缓存；settings/localStorage 仍为兼容与降级路径，启用后日志为权威来源。
 - 规范驻留落地后的完整取色器弹层（自定义颜色）；当前的循环换色按钮已覆盖预设调色板。
 
 ## Development

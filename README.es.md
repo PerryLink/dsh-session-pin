@@ -101,6 +101,7 @@ Todas las opciones son campos Schemastery `Config` (modificables desde cordis.ym
 | `enableViews` | `true` | Habilita las vistas de filtro guardadas |
 | `enableHealth` | `true` | Habilita el resumen de salud por sesión fijada (solo lectura, saneado) |
 | `enableGoto` | `true` | Habilita el comando `/goto <palabra>` del compositor |
+| `enableLogBacking` | `false` | Pliega los eventos `session/pin` en una proyección respaldada por el registro y la refleja en la caché de settings (fail-closed: el registro es canónico al activarse) |
 
 ## Tools & surfaces
 
@@ -135,7 +136,7 @@ Todas las opciones son campos Schemastery `Config` (modificables desde cordis.ym
 ## Roadmap
 
 - Entrada «Fijar» en el menú contextual / menú de fila (necesita un slot de menú a nivel de fila en el núcleo; el slot de insignia de fila ya está en upstream).
-- Residencia canónica: un evento `session/pin` respaldado por log + una proyección `pin` + un RPC de escritura (upstream) — el namespace de ajustes se retira entonces y el plugin consume `useProjection('pin')`.
+- ~~Residencia canónica: un evento `session/pin` respaldado por log + una proyección `pin` + un RPC de escritura (upstream) — el namespace de ajustes se retira entonces y el plugin consume `useProjection('pin')`.~~ **Implementado (P0):** el plugin ahora incluye el esquema del evento `session/pin`, el pliegue puro de la proyección (`foldPinEvents`), el canal de anexado con puerta ignorable (`PinLogAppender`) y un lector de proyección en el host (`enableLogBacking`) que pliega los eventos `session/pin` en vivo de vuelta a la caché de settings; el almacén settings/localStorage sigue siendo la ruta de compatibilidad y degradación, y el registro es canónico al activarse.
 - Un selector de color completo en popover (colores personalizados) una vez que exista la residencia canónica; el botón de ciclo actual cubre la paleta predefinida.
 
 ## Development

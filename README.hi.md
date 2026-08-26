@@ -101,6 +101,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 | `enableViews` | `true` | सहेजे गए फ़िल्टर दृश्य सक्षम करें |
 | `enableHealth` | `true` | हर पिन किए session का स्वास्थ्य सारांश सक्षम करें (रीड-ओनली, सैनिटाइज़्ड) |
 | `enableGoto` | `true` | कम्पोज़र का `/goto <कीवर्ड>` कमांड सक्षम करें |
+| `enableLogBacking` | `false` | `session/pin` इवेंट्स को log-समर्थित projection में fold करें और settings cache में mirror करें (fail-closed: सक्षम होने पर log canonical है) |
 
 ## Tools & surfaces
 
@@ -135,7 +136,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 ## Roadmap
 
 - राइट-क्लिक / पंक्ति-मेनू में «पिन» प्रविष्टि (कोर के पंक्ति-स्तरीय मेनू slot की आवश्यकता; पंक्ति बैज slot अब upstream में है)।
-- विहित स्थान: एक log-समर्थित `session/pin` event + `pin` projection + write RPC (upstream) — तब settings namespace टिकाऊ भंडार से हट जाता है और plugin `useProjection('pin')` का उपभोग करता है।
+- ~~विहित स्थान: एक log-समर्थित `session/pin` event + `pin` projection + write RPC (upstream) — तब settings namespace टिकाऊ भंडार से हट जाता है और plugin `useProjection('pin')` का उपभोग करता है।~~ **लागू (P0):** plugin में अब `session/pin` event schema, शुद्ध projection fold (`foldPinEvents`), ignorable-गेटेड append seam (`PinLogAppender`) और एक host projection reader (`enableLogBacking`) है जो लाइव `session/pin` इवेंट्स को settings cache में वापस fold करता है; settings/localStorage संगतता व degradation पथ बने रहते हैं, और सक्षम होने पर log canonical है।
 - विहित स्थान मौजूद होने पर एक पूर्ण रंग-चयनकर्ता popover (मनपसंद रंग); आज का चक्र बटन preset palette को कवर करता है।
 
 ## Development

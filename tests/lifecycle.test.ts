@@ -84,7 +84,7 @@ describe('config value domain', () => {
 
   it('fills every policy default for an empty config', () => {
     expect((Config as (value: unknown) => Config)({})).toEqual({
-      maxPins: 0, reorderOnLoad: true, pruneStale: true, enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
+      maxPins: 0, reorderOnLoad: true, pruneStale: true, enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true, enableLogBacking: false,
     })
   })
 

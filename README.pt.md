@@ -101,6 +101,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 | `enableViews` | `true` | Ativa as vistas de filtro salvas |
 | `enableHealth` | `true` | Ativa o resumo de saúde por sessão fixada (somente leitura, higienizado) |
 | `enableGoto` | `true` | Ativa o comando `/goto <palavra>` do compositor |
+| `enableLogBacking` | `false` | Dobra eventos `session/pin` em uma projeção respaldada pelo log e a espelha no cache de settings (fail-closed: o log é canônico quando ativado) |
 
 ## Tools & surfaces
 
@@ -135,7 +136,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 ## Roadmap
 
 - Entrada «Fixar» no menu de contexto / menu da linha (precisa de um slot de menu em nível de linha no núcleo; o slot de insígnia de linha já está no upstream).
-- Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.
+- ~~Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.~~ **Implementado (P0):** o plugin agora inclui o schema do evento `session/pin`, o fold puro da projeção (`foldPinEvents`), a costura de append com porta ignorável (`PinLogAppender`) e um leitor de projeção no host (`enableLogBacking`) que dobra os eventos `session/pin` ao vivo de volta ao cache de settings; o armazenamento settings/localStorage segue como rota de compatibilidade e degradação, e o log é canônico quando ativado.
 - Um seletor de cor completo em popover (cores personalizadas) uma vez que a residência canônica existir; o botão de ciclo atual cobre a paleta predefinida.
 
 ## Development
