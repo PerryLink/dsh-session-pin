@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-08-26
+
+### Added
+
+- **Log-backed canonical pin residence** (`enableLogBacking`, default false): a new `src/pin-log.ts` module defines the `session/pin` structured event, the pure projection fold that rebuilds the canonical pin set from a session log, and the ignorable-gated append seam. When enabled, the host half folds live `session/event` pins back into the canonical set and mirrors the folded `pinned`/`colors` into the settings namespace as an idempotent cache — the session log is authoritative, and the settings namespace plus browser-local storage remain the compat/degradation path. Workspace pins, both color maps' workspace half, and organizer metadata stay plugin-local and never ride the session log.
+
+### Changed
+
+- **Toolchain metadata**: CI pins pnpm to the `packageManager` version (pnpm@11.7.0) and Renovate is enabled via the shared `dsh-plugin-kit` preset. No plugin behavior changed.
+
 ## [0.5.0] - 2026-08-23
 
 ### Added
