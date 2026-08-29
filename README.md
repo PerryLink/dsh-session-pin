@@ -1,6 +1,7 @@
 <div align="center">
 
 # 📌 dsh-session-pin
+- **1024 store channel**: `npm i -g dsh1024` once, then `dsh1024 plugin --profile web add dsh-session-pin` (counts toward the [deepseek1024.com](https://deepseek1024.com) install ranking).
 [![Gitee](https://img.shields.io/badge/Gitee-mirror-c71d23?logo=gitee)](https://gitee.com/perrylink/dsh-session-pin)
 
 **Pin sessions and workspaces to the top of the DeepSeek Harness sidebar with per-pin row colors.**

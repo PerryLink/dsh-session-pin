@@ -1,6 +1,7 @@
 <div align="center">
 
 # 📌 dsh-session-pin
+- **Canal 1024 store**: `npm i -g dsh1024` uma vez, depois `dsh1024 plugin --profile web add dsh-session-pin` (conta para o ranking de instalações do [deepseek1024.com](https://deepseek1024.com)).
 
 **Fixe sessões e espaços de trabalho no topo da barra lateral do DeepSeek Harness com cores por pin.**
 

@@ -1,6 +1,7 @@
 <div align="center">
 
 # 📌 dsh-session-pin
+- **1024 商店渠道**：先 `npm i -g dsh1024`，再 `dsh1024 plugin --profile web add dsh-session-pin`（计入 [deepseek1024.com](https://deepseek1024.com) 安装排行）。
 
 **把会话与工作区置顶到 DeepSeek Harness 侧边栏顶部，并为每个置顶配上行颜色。**
 
