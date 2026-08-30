@@ -2,12 +2,13 @@
 /**
  * Log-backed canonical pin residence: the `session/pin` structured event, the
  * pure projection fold that rebuilds the canonical pin set from a session log,
- * and the ignorable-gated append seam that writes those events.
+ * and the pre-flight-gated append seam that writes those events.
  *
- * This module is the plugin's canonical home for per-session pin state. It is
- * deliberately framework-free — no cordis, no DOM, and no `@deepseek-ai/*`
- * value import — so the fold and appender are deterministic, pure, and unit
- * testable from the host half and tests alike.
+ * This module is deliberately framework-free — no cordis, no DOM — so the fold
+ * and appender are deterministic, pure, and unit testable from the host half
+ * and tests alike. The single sanctioned `@deepseek-ai/*` value import is
+ * `KNOWN_SESSION_EVENT_TYPES` (the host vocabulary the pre-flight gate must
+ * consult; mirrors dsh-click/src/events.ts).
  *
  * Seam alignment: the `session/pin` event key and the `{ pinned, at }`
  * whole-value shape match the upstream `@deepseek-ai/dsh-session-pin` package
@@ -19,10 +20,12 @@
  * builds that mount the upstream service, the upstream `pin` projection is the
  * canonical read; on builds without it, {@link foldPinEvents} reconstructs the
  * same state from the raw log and {@link PinLogAppender} self-builds the
- * events behind the `ignorable` envelope gate.
+ * events behind the pre-flight host gate.
  *
  * @module dsh-session-pin/pin-log
  */
+
+import { KNOWN_SESSION_EVENT_TYPES } from '@deepseek-ai/dsh-session'
 
 /** The log-only `session/pin` event type (seam-aligned with upstream). */
 export const PIN_EVENT = 'session/pin' as const
@@ -156,7 +159,7 @@ export function foldPinEvents(events: readonly SessionEventLike[]): PinProjectio
 
 /** Narrow append face of the upstream session (no `@deepseek-ai/dsh-session` import). */
 export interface PinAppendFace {
-  /** Append one log event, requesting the envelope's `ignorable` marker. */
+  /** Append one log event, optionally requesting the envelope's `ignorable` marker. */
   append(type: string, data: unknown, options?: { ignorable?: true }): unknown
 }
 
@@ -166,16 +169,44 @@ export function isMarkedIgnorable(result: unknown): boolean {
 }
 
 /**
- * Host-gated `session/pin` appender: requests the envelope's `ignorable: true`
- * marker so builds that do not know the type still read the log. On hosts
- * whose `append` drops the marker, the FIRST append is probed via its returned
- * envelope and further appends are disabled with a one-time warning so session
- * logs stay loadable everywhere. `allowUnmarked` opts back into unmarked
- * appends — deliberately dangerous — and append failures are contained so a
- * pin-log hiccup never disturbs the caller.
+ * Process-lifetime cache of the append-source probe, keyed by the append
+ * implementation (every session in one host build shares one implementation,
+ * and distinct implementations — tests, mixed builds — never share a verdict).
+ */
+const appendSourceProbe = new WeakMap<(...args: never[]) => unknown, boolean>()
+
+/**
+ * Whether one append implementation accepts the `ignorable` envelope option.
+ * Source-probed: the option survives nowhere in the runtime signature, so the
+ * function source is the only honest signal (the same probe dsh-click uses).
+ * @param append - the session append implementation.
+ * @returns true when the implementation's source references the marker.
+ */
+export function appendAcceptsIgnorable(append: (...args: never[]) => unknown): boolean {
+  let probed = appendSourceProbe.get(append)
+  if (probed === undefined) {
+    probed = Function.prototype.toString.call(append).includes('ignorable')
+    appendSourceProbe.set(append, probed)
+  }
+  return probed
+}
+
+/**
+ * Host-gated `session/pin` appender with a PRE-FLIGHT probe: the host's
+ * ability to carry the event is decided BEFORE the first write, never after
+ * it. A host can carry the event only when its known event vocabulary covers
+ * `session/pin` (the read path then accepts it) or its append still stamps the
+ * `ignorable` envelope marker (builds that do not know the type then skip it
+ * on restore). Envelope-less hosts whose vocabulary does not know the type
+ * (0.1.0-rc.6/rc.8, 0.1.1-rc.2, and 0.1.2-alpha.1 — which fails closed on
+ * unknown types at read) get NO append at all: the first write is where a
+ * poisoned log would start, so it never happens, a one-time warning fires, and
+ * the projection degrades to the settings cache. `allowUnmarked` opts back
+ * into marked appends on envelope-less hosts — deliberately dangerous — and
+ * append failures are contained so a pin-log hiccup never disturbs the
+ * caller.
  */
 export class PinLogAppender {
-  private support: 'unknown' | 'supported' | 'unsupported' = 'unknown'
   private warned = false
 
   constructor(
@@ -184,39 +215,41 @@ export class PinLogAppender {
   ) {}
 
   /**
-   * Append one log-only pin value, requesting the ignorable marker. Skipped
-   * after a failed probe (and on any append throw) so the log stays loadable.
+   * Append one log-only pin value after the pre-flight host probe. Skipped
+   * entirely (with a one-time warning) when the host cannot carry the event,
+   * and contained on any append throw.
    * @param session - the session whose log carries the event.
    * @param value - the whole-value pin state to commit.
    */
   append(session: PinAppendFace, value: PinLogValue): void {
-    if (!this.mayAppend()) return
     try {
-      const result = (session.append as unknown as (t: string, d: unknown, o?: { ignorable?: true }) => unknown)(PIN_EVENT, value, { ignorable: true })
-      this.probe(result)
+      if (!this.mayAppend(session)) {
+        this.warnOnce()
+        return
+      }
+      // A known-type host reads the event plainly; an ignorable-stamped host
+      // (or the dangerous opt-in) requests the marker so builds that do not
+      // know the type skip it on restore.
+      const options = KNOWN_SESSION_EVENT_TYPES.has(PIN_EVENT) ? undefined : { ignorable: true } as const
+      ;(session.append as unknown as (t: string, d: unknown, o?: { ignorable?: true }) => unknown)(PIN_EVENT, value, options)
     } catch (error) {
       this.warn(`session/pin append failed: ${String(error)}`)
     }
   }
 
-  /** Whether the host is known to stamp the marker (or the dangerous opt-in is set). */
-  private mayAppend(): boolean {
-    return this.allowUnmarked || this.support !== 'unsupported'
+  /** Whether the host can carry `session/pin` (known vocabulary, ignorable stamp, or the dangerous opt-in). */
+  private mayAppend(session: PinAppendFace): boolean {
+    if (this.allowUnmarked) return true
+    if (KNOWN_SESSION_EVENT_TYPES.has(PIN_EVENT)) return true
+    return appendAcceptsIgnorable(session.append as unknown as (...args: never[]) => unknown)
   }
 
-  /** After the first append on an unknown host, probe the returned envelope for the marker. */
-  private probe(result: unknown): void {
-    if (this.support !== 'unknown' || this.allowUnmarked) return
-    this.support = isMarkedIgnorable(result) ? 'supported' : 'unsupported'
-    if (this.support === 'unsupported') this.warnOnce()
-  }
-
-  /** One-time warning that pin appends were disabled to keep session logs loadable. */
+  /** One-time warning that pin appends were disabled BEFORE the first write to keep session logs loadable. */
   private warnOnce(): void {
     if (this.warned) return
     this.warned = true
     this.warn(
-      'this host drops the ignorable marker on the session/pin event (Session.append predates it), which would make sessions unresumable on stricter harness builds — session/pin appends are disabled and the projection degrades to the settings cache',
+      'this host cannot safely carry the session/pin event — its event vocabulary does not know the type and its append no longer accepts the ignorable marker, so a written event would make sessions unresumable on this build — session/pin appends are disabled before the first write and the projection degrades to the settings cache',
     )
   }
 }

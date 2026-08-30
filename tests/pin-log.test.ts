@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it, vi } from 'vitest'
+import { KNOWN_SESSION_EVENT_TYPES } from '@deepseek-ai/dsh-session'
 import {
   PIN_EVENT,
   PinLogAppender,
@@ -85,59 +86,101 @@ describe('pin-log event normalization', () => {
   })
 })
 
-describe('PinLogAppender ignorable gate', () => {
-  /** An append face returning an envelope with the given ignorable marker (or none). */
-  function face(marked: boolean): { session: { append: ReturnType<typeof vi.fn> }; calls: unknown[] } {
-    const append = vi.fn(() => (marked ? { ignorable: true } : {}))
-    return { session: { append }, calls: [] }
-  }
-
+describe('PinLogAppender pre-flight host gate', () => {
   it('isMarkedIgnorable reads the marker off the returned envelope', () => {
     expect(isMarkedIgnorable({ ignorable: true })).toBe(true)
     expect(isMarkedIgnorable({})).toBe(false)
     expect(isMarkedIgnorable(null)).toBe(false)
   })
 
-  it('appends with the ignorable request and keeps appending on a marked host', () => {
-    const { session } = face(true)
-    const appender = new PinLogAppender(false, () => {})
-    appender.append(session, value('a', true, 1))
-    appender.append(session, value('b', true, 2))
-    expect(session.append).toHaveBeenCalledTimes(2)
-    expect(session.append).toHaveBeenLastCalledWith(PIN_EVENT, value('b', true, 2), { ignorable: true })
+  it('appends plainly when the host vocabulary knows the type', () => {
+    ;(KNOWN_SESSION_EVENT_TYPES as Set<string>).add(PIN_EVENT)
+    try {
+      const calls: unknown[][] = []
+      // No 'ignorable' in this source: the known-type branch must win before
+      // the source probe is ever consulted.
+      const append = function (type: string, data: unknown) {
+        calls.push([type, data])
+        return {}
+      }
+      const warn = vi.fn()
+      const appender = new PinLogAppender(false, warn)
+      appender.append({ append }, value('a', true, 1))
+      expect(calls).toEqual([[PIN_EVENT, value('a', true, 1)]])
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      ;(KNOWN_SESSION_EVENT_TYPES as Set<string>).delete(PIN_EVENT)
+    }
   })
 
-  it('disables appends with a one-time warning after an unmarked probe', () => {
-    const { session } = face(false)
-    const warn = vi.fn()
-    const appender = new PinLogAppender(false, warn)
-    appender.append(session, value('a', true, 1))
-    appender.append(session, value('b', true, 2))
-    expect(session.append).toHaveBeenCalledTimes(1)
-    expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0]![0]).toContain('ignorable marker')
-  })
-
-  it('allowUnmarked opts back into unmarked appends without probing', () => {
-    const { session } = face(false)
-    const warn = vi.fn()
-    const appender = new PinLogAppender(true, warn)
-    appender.append(session, value('a', true, 1))
-    appender.append(session, value('b', true, 2))
-    expect(session.append).toHaveBeenCalledTimes(2)
-    expect(warn).not.toHaveBeenCalled()
-  })
-
-  it('contains an append throw without disturbing later appends', () => {
-    const append = vi.fn(() => {
-      throw new Error('boom')
-    })
+  it('appends with the ignorable request and keeps appending on an envelope host', () => {
+    const calls: unknown[][] = []
+    const append = function (type: string, data: unknown, options?: unknown) {
+      // The 'ignorable' marker rides the options bag on envelope hosts.
+      calls.push(options === undefined ? [type, data] : [type, data, options])
+      return { ignorable: (options as { ignorable?: boolean } | undefined)?.ignorable === true }
+    }
     const warn = vi.fn()
     const appender = new PinLogAppender(false, warn)
     appender.append({ append }, value('a', true, 1))
     appender.append({ append }, value('b', true, 2))
-    expect(append).toHaveBeenCalledTimes(2)
+    expect(calls).toEqual([
+      [PIN_EVENT, value('a', true, 1), { ignorable: true }],
+      [PIN_EVENT, value('b', true, 2), { ignorable: true }],
+    ])
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('writes nothing and warns once before the first write on a host that cannot carry the event', () => {
+    const calls: unknown[][] = []
+    // An envelope-less append: the source never mentions the marker.
+    const append = function (type: string, data: unknown) {
+      calls.push([type, data])
+      return {}
+    }
+    const warn = vi.fn()
+    const appender = new PinLogAppender(false, warn)
+    appender.append({ append }, value('a', true, 1))
+    appender.append({ append }, value('b', true, 2))
+    // The pre-flight probe must prevent the FIRST write itself (the
+    // write-then-probe defect poisoned the log on 0.1.2-alpha.1).
+    expect(calls).toHaveLength(0)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('ignorable')
+  })
+
+  it('allowUnmarked opts back into marked appends without probing', () => {
+    const calls: unknown[][] = []
+    const append = function (type: string, data: unknown, options?: unknown) {
+      calls.push(options === undefined ? [type, data] : [type, data, options])
+      return {}
+    }
+    const warn = vi.fn()
+    const appender = new PinLogAppender(true, warn)
+    appender.append({ append }, value('a', true, 1))
+    appender.append({ append }, value('b', true, 2))
+    expect(calls).toEqual([
+      [PIN_EVENT, value('a', true, 1), { ignorable: true }],
+      [PIN_EVENT, value('b', true, 2), { ignorable: true }],
+    ])
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('contains an append throw without disturbing later appends', () => {
+    let attempts = 0
+    const append = function (_type: string, _data: unknown, _options?: { ignorable?: true }) {
+      attempts += 1
+      // The marker word lives in the RUNTIME source (type annotations are
+      // stripped), so the pre-flight source probe lets the append through.
+      throw new Error(`envelope host failed to stamp ignorable`)
+    }
+    const warn = vi.fn()
+    const appender = new PinLogAppender(false, warn)
+    appender.append({ append }, value('a', true, 1))
+    appender.append({ append }, value('b', true, 2))
+    expect(attempts).toBe(2)
     expect(warn).toHaveBeenCalledTimes(2)
     expect(warn.mock.calls[0]![0]).toContain('append failed')
+    expect(warn.mock.calls[1]![0]).toContain('append failed')
   })
 })
