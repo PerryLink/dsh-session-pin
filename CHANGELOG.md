@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Pre-flight `session/pin` append gate** (`src/pin-log.ts`): `PinLogAppender` now probes the host's ability to carry the `session/pin` event BEFORE the first write instead of appending first and probing the returned envelope after. A host can carry the event only when its known event vocabulary (`KNOWN_SESSION_EVENT_TYPES`) covers the type or its append implementation still stamps the `ignorable` envelope marker (source-probed and cached per process). On hosts where neither holds — `0.1.2-alpha.1` removed the envelope and its read path fails closed on unknown types — no append is ever written (the previous write-then-probe order poisoned the log on first use) and the projection degrades to the settings cache with a one-time warning. `allowUnmarked` keeps the dangerous opt-in; `isMarkedIgnorable` remains exported for result-envelope probing.
+- **Client seam migration off `@deepseek-ai/dsh-client-runtime`** (removed from current hosts): `src/client.ts` now reads the `SessionId`/`WorkspaceId` brands from `@deepseek-ai/dsh-client-connection/client`, and `src/ui.ts` types the session-header standard-kit seats (`sessionId`, `useProjection`) as a local structural contract instead of importing the removed package's merge. `dsh.client.inject` migrates from `@deepseek-ai/dsh-client-runtime` to the surviving client rows (`dsh-client-connection`, `dsh-client-ui-conversation`, `dsh-client-ui-sidebar`, `dsh-client-ui-layout`, `dsh-client-ui-settings`); peer ranges follow the family baseline and the optional-peer table mirrors the new list.
+- **Row-slot degrade verified on `0.1.2-alpha.1`**: host HEAD declares no `sessions.row.action` slot (grep-verified), so the row-slot registration stays deferred through `slots.inject` and session rows fall back to the DOM overlay — no throw, no duplicate pin sets. Covered by the new `tests/row-slot.test.ts`.
+
 ## [0.6.1] - 2026-08-27
 
 ### Fixed

@@ -29,6 +29,7 @@
 | Node | `>= 22` (piso de desenvolvimento) |
 | Plataformas | Web GUI (duas faces: host + navegador) |
 | Modelo | Qualquer (somente UI — sem tráfego de modelo, sem eventos de sessão) |
+| Eventos `session/pin` | Com portão prévio: nunca escritos em hosts cujo vocabulário de eventos não conhece o tipo e cujo append deixou cair o marcador `ignorable` (`0.1.2-alpha.1`); a projeção degrada para o cache de settings |
 
 ## What you get
 
@@ -62,9 +63,11 @@ Quatro capacidades locais do navegador organizam o trabalho multi-sessão por ci
 - **Metade host** (`src/index.ts`) — registra o namespace de settings durável `session-pin` (as duas listas de ids fixados, os dois mapas de cor e o estado do organizador, mais a política do host `maxPins`/`reorderOnLoad`/`pruneStale`); sem eventos de sessão, sem tráfego de modelo.
 - **Metade navegador** (`src/client.ts`) — monta um `PinStore` sem framework (transporte de settings, degradando para um documento versionado de `localStorage` com sincronização entre abas), um `PinController` (máquina de estados de alternar / ciclo de cor / podar / reordenar) e a UI: a sobreposição de linhas, o registro opcional do slot, o alternador de cabeçalho, a ação do rodapé e o painel de fixados. A ordenação passa por `ctx.workspaces`.
 - **Canal de escrita respaldado por log** — em builds que montam o serviço integrado `dsh-session-pin`, cada alternância de sessão confirma primeiro pelo RPC `session.setPinned` (o log de eventos `session/pin` é a residência canônica) e espelha no armazenamento de settings; um RPC falho ou lento degrada para escrita direta.
+- **Leitura de projeção respaldada por log** — `enableLogBacking` (Config do host, padrão desligado fail-closed) monta um leitor que dobra eventos `session/pin` ao vivo para o conjunto canônico e espelha `pinned`/`colors` no namespace de settings. O schema, o fold puro (`foldPinEvents`) e a costura de append com portão prévio (`PinLogAppender`) vivem em `src/pin-log.ts`: o vocabulário de eventos do host mais seu marcador `ignorable` são sondados ANTES da primeira escrita (resultado em cache por processo), então hosts que não podem transportar o evento com segurança — `0.1.2-alpha.1` rejeita tipos desconhecidos na leitura — nunca recebem um; o armazenamento settings/localStorage segue como rota de compatibilidade e degradação.
+- **Seam do cliente** — a metade navegador lê os brands `SessionId`/`WorkspaceId` de `@deepseek-ai/dsh-client-connection` (o pacote removido `dsh-client-runtime` não existe mais nos hosts atuais); os assentos do kit padrão do slot de cabeçalho são tipados como contrato estrutural local. Em hosts `0.1.2-alpha.1` o slot de linha `sessions.row.action` não é declarado, então as linhas de sessão recorrem à sobreposição DOM e o registro do slot fica diferido.
 - **Compilação** — o esbuild emite a metade ESM do host e a metade CJS do cliente envolvida na fábrica de boot web (`window.__ModuleLoader__.load({ id, factory })`); `react` é externalizado para o React do shell, e uma barreira de pureza falha o build se uma importação de valor `@deepseek-ai/*` vazar para o bundle do navegador.
 
-**Pontos de extensão usados:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (cliente); `locale` (cliente, opcional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, e o slot de linha `sessions.row.action` quando declarado. **Efeitos visíveis ao modelo: nenhum** — plugin somente de UI: não adiciona eventos de sessão nem tokens.
+**Pontos de extensão usados:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (cliente); `locale` (cliente, opcional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, e o slot de linha `sessions.row.action` quando declarado (hosts `0.1.2-alpha.1` não o declaram — a sobreposição DOM cobre ali as linhas de sessão). **Efeitos visíveis ao modelo: nenhum** — plugin somente de UI: não adiciona eventos de sessão nem tokens.
 
 ## Quick start
 
@@ -118,7 +121,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 
 - **Permissões**: o manifesto `dshWorkshop` declara `browser:local-storage`, `settings:read` e `settings:write`.
 - **Dados**: pins, cores e estado do organizador vivem por navegador no namespace de settings `session-pin`, degradando para um documento versionado de `localStorage` (documentos v1 migram) onde o proxy web não serve o namespace. Nada é enviado.
-- **Registro de sessão**: nenhum — este plugin não adiciona eventos de sessão nem tokens a nenhuma requisição do modelo.
+- **Registro de sessão**: nenhum por padrão — este plugin não adiciona eventos de sessão nem tokens a nenhuma requisição do modelo. Com `enableLogBacking` ativo, o host dobra o evento `session/pin` de apenas-log (escrito pelo RPC `session.setPinned` do upstream) para a projeção canônica; o `PinLogAppender` aplica o portão prévio às próprias escritas, então hosts que não podem transportar o evento (`0.1.2-alpha.1`) nunca recebem uma. Os efeitos visíveis ao modelo continuam nenhum.
 
 ## Security boundaries
 
@@ -128,7 +131,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 
 ## Known limitations
 
-- **Alcance da persistência** — onde o proxy web não serve o namespace `session-pin`, pins e cores recorrem ao `localStorage` do navegador; o registro do host vira o armazenamento durável automaticamente assim que upstream expõe o namespace.
+- **Alcance da persistência** — onde o proxy web não serve o namespace `session-pin`, pins e cores recorrem ao `localStorage` do navegador; o registro do host vira o armazenamento durável automaticamente assim que upstream expõe o namespace. Em hosts `0.1.2-alpha.1` o portão prévio desativa por completo os appends ao log (o vocabulário de eventos fail-closed rejeitaria tais logs), então a projeção degrada ali para o cache de settings.
 - **Alcance da ordenação** — a posição fixada é estável somente na ordenação **Manual**; na ordenação **Updated** a promoção por atividade do núcleo volta a adiantar sessões ativas, e o `reorderOnLoad` reafirma os prefixos ao carregar.
 - **Navegadores remotos** — os RPCs de settings são apenas loopback na linha de base; navegadores remotos recorrem ao `localStorage` local.
 - **Fallback da insígnia de linha** — onde o slot de linha do upstream não está disponível, as linhas de sessão são casadas pelo texto do título; com títulos duplicados a insígnia aparece em cada linha correspondente e alterna a primeira correspondência (cosmético).
@@ -137,7 +140,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 ## Roadmap
 
 - Entrada «Fixar» no menu de contexto / menu da linha (precisa de um slot de menu em nível de linha no núcleo; o slot de insígnia de linha já está no upstream).
-- ~~Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.~~ **Implementado (P0):** o plugin agora inclui o schema do evento `session/pin`, o fold puro da projeção (`foldPinEvents`), a costura de append com porta ignorável (`PinLogAppender`) e um leitor de projeção no host (`enableLogBacking`) que dobra os eventos `session/pin` ao vivo de volta ao cache de settings; o armazenamento settings/localStorage segue como rota de compatibilidade e degradação, e o log é canônico quando ativado.
+- ~~Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.~~ **Implementado (P0):** o plugin agora inclui o schema do evento `session/pin`, o fold puro da projeção (`foldPinEvents`), a costura de append com portão prévio (`PinLogAppender`) e um leitor de projeção no host (`enableLogBacking`) que dobra os eventos `session/pin` ao vivo de volta ao cache de settings; o armazenamento settings/localStorage segue como rota de compatibilidade e degradação, e o log é canônico quando ativado.
 - Um seletor de cor completo em popover (cores personalizadas) uma vez que a residência canônica existir; o botão de ciclo atual cobre a paleta predefinida.
 
 ## Development
