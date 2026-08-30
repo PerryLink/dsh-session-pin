@@ -20,7 +20,7 @@
  * @module dsh-session-pin/client
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { PinController } from './pin-controller.ts'

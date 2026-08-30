@@ -26,7 +26,6 @@ import type { ComposedProps } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type { PinOrganizerFace, PinReadFace, PinTranslate, PinUiState, SessionListFace, WorkspaceListFace } from './faces.ts'
 import { groupPinnedByBoard, type BoardRegistry } from './navigator.ts'
 import {
@@ -72,7 +71,20 @@ interface HeaderInjected {
   t: PinTranslate
 }
 
-type HeaderButtonProps = ComposedProps<'conversation.session.header.actions', string, never, undefined, HeaderInjected>
+/**
+ * The session standard-kit seats (`sessionId`, `useProjection`) were merged
+ * into the slot props by the removed `@deepseek-ai/dsh-client-runtime`
+ * package. They are typed here as a local structural contract — the runtime
+ * contract is structural, and both seats are narrowed again at the read site —
+ * so this module compiles against either ruler without importing the removed
+ * package (mirrors dsh-background-agents' local-contract comments).
+ */
+type HeaderButtonProps = ComposedProps<'conversation.session.header.actions', string, never, undefined, HeaderInjected> & {
+  /** Framework-resolved session id (read structurally; absent on rulers without the seat merge). */
+  readonly sessionId?: unknown
+  /** Key-addressed projection reader (read structurally; absent on rulers without the seat merge). */
+  readonly useProjection?: unknown
+}
 
 /** Projection-key read, crossed through the version boundary (the `pin` key
  * ships with the upstream session-pin package; the npm baseline lacks it). */
