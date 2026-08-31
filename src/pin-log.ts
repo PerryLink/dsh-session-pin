@@ -4,7 +4,7 @@
  * pure projection fold that rebuilds the canonical pin set from a session log,
  * and the pre-flight-gated append seam that writes those events.
  *
- * This module is deliberately framework-free 鈥?no cordis, no DOM 鈥?so the fold
+ * This module is deliberately framework-free — no cordis, no DOM — so the fold
  * and appender are deterministic, pure, and unit testable from the host half
  * and tests alike. The single sanctioned `@deepseek-ai/*` value import is
  * `KNOWN_SESSION_EVENT_TYPES` (the host vocabulary the pre-flight gate must
@@ -34,7 +34,7 @@ export const PIN_EVENT = 'session/pin' as const
 export interface PinLogValue {
   /** The session whose pin state this event commits. */
   readonly sessionId: string
-  /** The complete post-change pin membership 鈥?never a delta. */
+  /** The complete post-change pin membership — never a delta. */
   readonly pinned: boolean
   /** Epoch-millis recency key ordering pins across sessions (carried for upstream seam alignment). */
   readonly at: number
@@ -62,7 +62,7 @@ export interface SessionEventLike {
 export interface PinProjection {
   /** Ordered pinned session ids, newest pin first. */
   readonly pinned: string[]
-  /** Session id 鈫?palette color. */
+  /** Session id → palette color. */
   readonly colors: Record<string, string>
 }
 
@@ -74,7 +74,8 @@ export function emptyPinProjection(): PinProjection {
 /**
  * Whether a candidate payload is a complete plugin-format `PinLogValue`
  * (session id, boolean membership, and a finite recency key; color/workspace
- * optional). Upstream payloads that omit `sessionId` do NOT pass this guard 鈥? * normalize them first with {@link normalizePinEventValue}.
+ * optional). Upstream payloads that omit `sessionId` do NOT pass this guard —
+ * normalize them first with {@link normalizePinEventValue}.
  * @param value - candidate event payload.
  * @returns true only for a well-formed plugin-format pin value.
  */
@@ -170,7 +171,7 @@ export function isMarkedIgnorable(result: unknown): boolean {
 /**
  * Process-lifetime cache of the append-source probe, keyed by the append
  * implementation (every session in one host build shares one implementation,
- * and distinct implementations 鈥?tests, mixed builds 鈥?never share a verdict).
+ * and distinct implementations — tests, mixed builds — never share a verdict).
  */
 const appendSourceProbe = new WeakMap<(...args: never[]) => unknown, boolean>()
 
@@ -197,11 +198,11 @@ export function appendAcceptsIgnorable(append: (...args: never[]) => unknown): b
  * `session/pin` (the read path then accepts it) or its append still stamps the
  * `ignorable` envelope marker (builds that do not know the type then skip it
  * on restore). Envelope-less hosts whose vocabulary does not know the type
- * (0.1.0-rc.6/rc.8, 0.1.1-rc.2, and 0.1.2-alpha.1 鈥?which fails closed on
+ * (0.1.0-rc.6/rc.8, 0.1.1-rc.2, and 0.1.2-alpha.1 — which fails closed on
  * unknown types at read) get NO append at all: the first write is where a
  * poisoned log would start, so it never happens, a one-time warning fires, and
  * the projection degrades to the settings cache. On 0.1.2-alpha.2 the envelope field is restored for stored-log read compatibility only - its Session.append still cannot stamp the marker, so the gate behavior is unchanged. `allowUnmarked` opts back
- * into marked appends on envelope-less hosts 鈥?deliberately dangerous 鈥?and
+ * into marked appends on envelope-less hosts — deliberately dangerous — and
  * append failures are contained so a pin-log hiccup never disturbs the
  * caller.
  */
@@ -248,7 +249,7 @@ export class PinLogAppender {
     if (this.warned) return
     this.warned = true
     this.warn(
-      'this host cannot safely carry the session/pin event 鈥?its event vocabulary does not know the type and its append no longer accepts the ignorable marker, so a written event would make sessions unresumable on this build 鈥?session/pin appends are disabled before the first write and the projection degrades to the settings cache',
+      'this host cannot safely carry the session/pin event — its event vocabulary does not know the type and its append no longer accepts the ignorable marker, so a written event would make sessions unresumable on this build — session/pin appends are disabled before the first write and the projection degrades to the settings cache',
     )
   }
 }
