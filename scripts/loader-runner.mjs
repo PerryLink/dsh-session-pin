@@ -14,7 +14,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import { SettingsProvider, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import { SettingsProvider } from '@deepseek-ai/dsh-settings'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -58,7 +58,7 @@ try {
 
   // Authoritative registry carries the plugin's contribution: the session-pin
   // settings namespace with the config-applied base layer.
-  const resolved = ctx.settings.get(settingsNamespace('session-pin'))
+  const resolved = ctx.settings.get(/** @type {import('@deepseek-ai/dsh-settings').SettingsNamespace} */ ('session-pin'))
   if (resolved === undefined || typeof resolved !== 'object' || resolved === null) {
     throw new Error('Loader composition: session-pin settings namespace is not registered')
   }

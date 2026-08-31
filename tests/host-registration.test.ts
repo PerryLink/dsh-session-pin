@@ -28,7 +28,6 @@ describe('session-pin host apply', () => {
         pruneStale: false,
       },
       applies: 'live',
-      expose: true,
     })
   })
 
