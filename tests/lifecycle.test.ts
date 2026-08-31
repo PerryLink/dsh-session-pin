@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import { SettingsProvider, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { Config, apply } from '../src/index.ts'
 
 /** In-memory settings provider: the plugin registers the session-pin namespace on it. */
@@ -54,11 +54,11 @@ describe('fiber disposal', () => {
       const plugin = await import('../src/index.ts')
       const pluginFiber = await ctx.plugin(plugin as unknown as import('@deepseek-ai/cordis').Plugin, { maxPins: 5 })
 
-      expect(settings.get(settingsNamespace('session-pin'))).toBeDefined()
+      expect(settings.get('session-pin' as SettingsNamespace)).toBeDefined()
 
       await pluginFiber.dispose()
 
-      expect(settings.get(settingsNamespace('session-pin'))).toBeUndefined()
+      expect(settings.get('session-pin' as SettingsNamespace)).toBeUndefined()
     } finally {
       await ctx.fiber.dispose()
     }
@@ -94,7 +94,7 @@ describe('config value domain', () => {
       await ctx.plugin(InMemorySettings)
       const plugin = await import('../src/index.ts')
       await ctx.plugin(plugin as unknown as import('@deepseek-ai/cordis').Plugin, {})
-      const resolved = (ctx.get('settings') as InMemorySettings).get(settingsNamespace('session-pin'))
+      const resolved = (ctx.get('settings') as InMemorySettings).get('session-pin' as SettingsNamespace)
       expect(resolved).toMatchObject({ maxPins: 0, reorderOnLoad: true })
       expect(apply).toBeTypeOf('function')
     } finally {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it, vi } from 'vitest'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { Context } from '@deepseek-ai/cordis'
 import { apply, Config } from '../src/index.ts'
 
@@ -15,7 +15,7 @@ describe('session-pin host apply', () => {
     apply(fakeCtx(register), (Config as (value: unknown) => Config)({ maxPins: 5, reorderOnLoad: false, pruneStale: false }))
     expect(register).toHaveBeenCalledTimes(1)
     const [ns, schema, options] = register.mock.calls[0] as [unknown, unknown, { base: unknown; applies: unknown }]
-    expect(ns).toBe(settingsNamespace('session-pin'))
+    expect(ns).toBe('session-pin' as SettingsNamespace)
     expect(typeof schema).toBe('function') // schemastery schemas are callable
     expect(options).toMatchObject({
       base: {

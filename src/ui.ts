@@ -320,7 +320,7 @@ function PinPanel(props: PanelProps): React.ReactNode {
 
   if (!open) return null
   const rows: React.ReactNode[] = []
-  const wsById = new Map(workspaceList.items.map(item => [item.workspaceId, item.title]))
+  const wsById = new Map<string, string>(workspaceList.items.map((item: { workspaceId: string; title: string }) => [item.workspaceId, item.title]))
 
   const renderSection = (
     sectionKey: string,
@@ -377,7 +377,7 @@ function PinPanel(props: PanelProps): React.ReactNode {
   }
 
   renderSection('w', t('panelWorkspaces'), workspacePinned, id => wsById.get(id) ?? id, id => pin.getWorkspaceColor(id), openWorkspace, false)
-  renderSection('s', t('panelSessions'), pinned, id => list.byId[id]?.displayTitle ?? id, id => pin.getColor(id), openSession, true)
+  renderSection('s', t('panelSessions'), pinned, id => String(list.byId[id]?.displayTitle ?? id), id => pin.getColor(id), openSession, true)
 
   if (rows.length === 0) {
     rows.push(React.createElement('div', { key: '__empty__', className: PANEL_ROW_CLASS }, t('panelEmpty')))
@@ -390,9 +390,15 @@ function PinPanel(props: PanelProps): React.ReactNode {
   }, rows)
 }
 
+/** Structural slots face: the host removed the client-runtime merge that typed `ctx.slots`. */
+export interface PinSlotsFace {
+  inject(key: string, callback: () => unknown): () => void
+  register(options: object, component: unknown): unknown
+}
+
 /** Dependencies of the slot registrations (glue supplies the runtime faces). */
 export interface RegisterSlotsDeps {
-  ctx: Pick<Context, 'slots'>
+  ctx: { slots: PinSlotsFace }
   pin: PinOrganizerFace
   ui: PinUiState
   sessions: SessionListFace

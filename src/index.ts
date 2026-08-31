@@ -21,7 +21,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { settingsNamespace, type SettingsRegisterOptions, type SettingsScope } from '@deepseek-ai/dsh-settings'
+import type { SettingsNamespace, SettingsRegisterOptions, SettingsScope } from '@deepseek-ai/dsh-settings'
 import { normalizeColors, normalizePins } from './pin-core.ts'
 import { PIN_EVENT, normalizePinEventValue, type PinLogValue } from './pin-log.ts'
 
@@ -149,10 +149,9 @@ export function apply(ctx: Context, config: Config): void {
       enableGoto: config.enableGoto,
     },
     applies: 'live' as const,
-    expose: true,
   } as unknown as SettingsRegisterOptions<Record<string, unknown>>
   const scope = ctx.settings.register(
-    settingsNamespace('session-pin'),
+    'session-pin' as SettingsNamespace,
     PinSchema,
     options,
   ) as unknown as SettingsScope<Record<string, unknown>>

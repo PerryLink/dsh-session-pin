@@ -20,19 +20,20 @@
  * @module dsh-session-pin/client
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-connection/client'
+import type { SessionId } from '@deepseek-ai/dsh-client-connection/client'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { PinController } from './pin-controller.ts'
 import { reorderMoves, topAnchor } from './pin-core.ts'
-import { createPinStore, type PinSection, type StorageEventsLike, type StorageLike } from './pin-store.ts'
+import { createPinStore, type PinScope, type StorageEventsLike, type StorageLike } from './pin-store.ts'
 import { mountNavigator } from './nav-ui.ts'
 import type { HealthEventFace } from './navigator.ts'
 import type { PinRemoteLike, PinTranslate, SessionListFace, WorkspaceListFace } from './faces.ts'
 import { LOCALE_DICTS, LOCALE_NS, fallbackTranslate } from './locales.ts'
 import { mountOverlay, type OverlayDoc } from './overlay.ts'
 import { STYLE_TEXT } from './pin-ui-shared.ts'
-import { createPinUiState, registerSlots } from './ui.ts'
+import { createPinUiState, registerSlots, type PinSlotsFace } from './ui.ts'
 import { mountRowSlot, ROW_SLOT_KEY, type RowSlotRegistryLike } from './row-slot.ts'
 
 export const name = 'session-pin'
@@ -154,8 +155,31 @@ interface RowSlotGateRegistry {
  * @param ctx - client cordis context.
  */
 export function apply(ctx: Context): void {
+/** Structural client-context face: 0.1.2-alpha.2 no longer merges the workspaces/slots/session-binding faces onto the client Context (the removed client-runtime used to carry them). */
+interface ClientCtxFace {
+  sessions: {
+    list: { getSnapshot(): { byId: Record<string, { displayTitle: string; blank: boolean }>; ids: readonly unknown[]; phase: unknown }; subscribe(cb: () => void): () => void }
+    open: (id: SessionId) => void
+    binding: (id: SessionId) => { session: { getSnapshot(): { nodes?: ReadonlyArray<{ kind?: string; time?: number }> } } } | undefined
+  }
+  workspaces: {
+    list: {
+      getSnapshot(): { items: Array<{ workspaceId: string; title: string; sessionIds: readonly string[] }>; phase: unknown }
+      subscribe(cb: () => void): () => void
+    }
+    insertSessionBefore?: (workspaceId: WorkspaceId, sessionId: SessionId, anchor: SessionId) => Promise<void>
+    insertBefore?: (workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>
+    startSession?: (workspaceId?: WorkspaceId) => void
+  }
+  slots: unknown
+  settingsScope: { bind<T>(opts: { namespace: string }): T }
+  logger: { warn(msg: string): void }
+  on(name: string, cb: () => void): () => void
+  inject(keys: string[], cb: (scope: { effect: (cb: () => unknown, label?: string) => unknown; locale: { register(ns: string, dicts: unknown): unknown; bind(ns: string): (key: string) => string } }) => void): void
+  effect(cb: () => unknown, label?: string): unknown
+}  const c = ctx as unknown as ClientCtxFace
   const styleTag = injectStyles()
-  const scope = ctx.settingsScope.bind<PinSection>({ namespace: NAMESPACE })
+  const scope = c.settingsScope.bind<PinScope>({ namespace: NAMESPACE })
   const store = createPinStore(scope, guardedStorage(), window as unknown as StorageEventsLike)
 
   // Narrow the runtime sessions list into the framework-free face (the one
@@ -166,14 +190,14 @@ export function apply(ctx: Context): void {
   const sessionsFace: SessionListFace = {
     getSnapshot: () => {
       if (sessionsCache !== undefined) return sessionsCache
-      const list = ctx.sessions.list.getSnapshot()
+      const list = c.sessions.list.getSnapshot()
       const byId: Record<string, { displayTitle: string; blank: boolean }> = {}
       for (const [id, summary] of Object.entries(list.byId)) {
         byId[id] = { displayTitle: summary.displayTitle, blank: summary.blank }
       }
-      return sessionsCache = { phase: list.phase, ids: list.ids.map(id => id as string), byId }
+      return sessionsCache = { phase: list.phase as string, ids: list.ids.map(id => id as string), byId }
     },
-    subscribe: listener => ctx.sessions.list.subscribe(() => {
+    subscribe: listener => c.sessions.list.subscribe(() => {
       sessionsCache = undefined
       listener()
     }),
@@ -185,13 +209,13 @@ export function apply(ctx: Context): void {
   const workspacesFace: WorkspaceListFace = {
     getSnapshot: () => {
       if (workspacesCache !== undefined) return workspacesCache
-      const snapshot = ctx.workspaces.list.getSnapshot()
+      const snapshot = c.workspaces.list.getSnapshot()
       return workspacesCache = {
         phase: snapshot.phase as string,
         items: snapshot.items.map(item => ({ workspaceId: item.workspaceId as string, title: item.title })),
       }
     },
-    subscribe: listener => ctx.workspaces.list.subscribe(() => {
+    subscribe: listener => c.workspaces.list.subscribe(() => {
       workspacesCache = undefined
       listener()
     }),
@@ -199,37 +223,37 @@ export function apply(ctx: Context): void {
 
   const moveToTop = async (id: string): Promise<void> => {
     const sessionId = id as SessionId
-    const snapshot = ctx.workspaces.list.getSnapshot()
+    const snapshot = c.workspaces.list.getSnapshot()
     const workspace = snapshot.items.find(item => item.sessionIds.includes(sessionId))
     if (workspace === undefined) return // ungrouped: no host-side account to reorder
     const anchor = topAnchor(workspace.sessionIds as readonly string[], id)
     if (anchor === undefined) return
     try {
-      await ctx.workspaces.insertSessionBefore(workspace.workspaceId, sessionId, anchor as SessionId)
+      await c.workspaces.insertSessionBefore?.(workspace.workspaceId as WorkspaceId, sessionId, anchor as SessionId)
     } catch (error: unknown) {
-      ctx.logger.warn(`session-pin: reorder rejected: ${String(error)}`)
+      c.logger.warn(`session-pin: reorder rejected: ${String(error)}`)
     }
   }
 
   const moveWorkspaceToTop = async (id: string): Promise<void> => {
     // Runtime probe: older baselines' workspaces service may predate the
     // workspace-level reorder RPC; the pin state still works without it.
-    const insertBefore = ctx.workspaces.insertBefore as ((workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>) | undefined
+    const insertBefore = c.workspaces.insertBefore as ((workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>) | undefined
     if (typeof insertBefore !== 'function') return
-    const items = ctx.workspaces.list.getSnapshot().items
+    const items = c.workspaces.list.getSnapshot().items
     const index = items.findIndex(item => item.workspaceId === id)
     if (index <= 0) return
     try {
-      await insertBefore(id as WorkspaceId, items[0]!.workspaceId)
+      await insertBefore(id as WorkspaceId, items[0]!.workspaceId as WorkspaceId)
     } catch (error: unknown) {
-      ctx.logger.warn(`session-pin: workspace reorder rejected: ${String(error)}`)
+      c.logger.warn(`session-pin: workspace reorder rejected: ${String(error)}`)
     }
   }
 
   const reorderer = {
     moveToTop,
     reapplyOrder: (pinned: readonly string[]): void => {
-      const snapshot = ctx.workspaces.list.getSnapshot()
+      const snapshot = c.workspaces.list.getSnapshot()
       for (const item of snapshot.items) {
         const moves = reorderMoves(item.sessionIds as readonly string[], pinned)
         for (const id of moves) void moveToTop(id)
@@ -237,14 +261,14 @@ export function apply(ctx: Context): void {
     },
     moveWorkspaceToTop,
     reapplyWorkspaceOrder: (pinned: readonly string[]): void => {
-      const ids = ctx.workspaces.list.getSnapshot().items.map(item => item.workspaceId as string)
+      const ids = c.workspaces.list.getSnapshot().items.map(item => item.workspaceId as string)
       const moves = reorderMoves(ids, pinned)
       for (const id of moves) void moveWorkspaceToTop(id)
     },
   }
 
   const remote = buildPinRemote(ctx)
-  ctx.on('connection/reset', () => {
+  c.on('connection/reset', () => {
     remote?.reenable()
   })
   // The controller consumes the workspace list through a phase+ids face; the
@@ -265,7 +289,7 @@ export function apply(ctx: Context): void {
   const navSnapshot = store.read()
   const healthSource = {
     healthFor: (id: string): readonly HealthEventFace[] | undefined => {
-      const binding = ctx.sessions.binding(id as SessionId)
+      const binding = c.sessions.binding(id as SessionId)
       const nodes = binding?.session.getSnapshot().nodes as ReadonlyArray<{ kind?: string; time?: number }> | undefined
       if (nodes === undefined) return undefined
       return nodes.map((node) => ({
@@ -286,7 +310,7 @@ export function apply(ctx: Context): void {
   // ships one; the fallback keeps English without it. The holder indirection
   // keeps slot inject faces stable while the binding upgrades live.
   let translate: PinTranslate = fallbackTranslate
-  ctx.inject(['locale'], (localeCtx) => {
+  c.inject(['locale'], (localeCtx) => {
     // locale.register returns the only unregister disposer and throws on a
     // duplicate namespace: hold it on this scope's fiber so unload/reload
     // cycles can re-register the dictionaries.
@@ -301,7 +325,7 @@ export function apply(ctx: Context): void {
   // unconstrained), so the gate refreshes on slot-registry changes. Both
   // registry methods are runtime-probed: the npm baseline's slots service
   // predates them, and this plugin must keep degrading gracefully there.
-  const slotsGate = ctx.slots as unknown as RowSlotGateRegistry
+  const slotsGate = c.slots as unknown as RowSlotGateRegistry
   let rowSlotActive = false
   const refreshRowSlotActive = (): void => {
     rowSlotActive = typeof slotsGate.snapshot === 'function' && slotsGate.snapshot(ROW_SLOT_KEY).length > 0
@@ -311,10 +335,10 @@ export function apply(ctx: Context): void {
     ? (listener: () => void): (() => void) => slotsGate.subscribe(ROW_SLOT_KEY, listener)
     : (): (() => void) => (): void => {}
 
-  ctx.effect(() => {
+  c.effect(() => {
     controller.start()
     const disposeRowSlot = mountRowSlot({
-      slots: ctx.slots as unknown as RowSlotRegistryLike,
+      slots: c.slots as unknown as RowSlotRegistryLike,
       pin: controller,
       t: key => translate(key),
     })
@@ -327,31 +351,31 @@ export function apply(ctx: Context): void {
       pin: controller,
       t: key => translate(key),
       warn: message => {
-        ctx.logger.warn(message)
+        c.logger.warn(message)
       },
       doc: document as unknown as OverlayDoc,
       sessionSlotActive: () => rowSlotActive,
       onSlotsChange: subscribeSlots,
     })
     const disposeSlots = registerSlots({
-      ctx,
+      ctx: { slots: c.slots as unknown as PinSlotsFace },
       pin: controller,
       ui,
       sessions: sessionsFace,
       workspaces: workspacesFace,
       t: key => translate(key),
       openSession: id => {
-        ctx.sessions.open(id as SessionId)
+        c.sessions.open(id as SessionId)
       },
       openWorkspace: id => {
         // Runtime probe: baselines without the startSession helper degrade to
         // a no-op (the panel row simply closes without jumping).
-        const startSession = ctx.workspaces.startSession as ((workspaceId?: WorkspaceId) => void) | undefined
+        const startSession = c.workspaces.startSession as ((workspaceId?: WorkspaceId) => void) | undefined
         if (typeof startSession === 'function') startSession(id as WorkspaceId)
-        else ctx.logger.warn('session-pin: workspace open unavailable on this baseline')
+        else c.logger.warn('session-pin: workspace open unavailable on this baseline')
       },
     })
-    const disposeWorkspaces = ctx.workspaces.list.subscribe(() => {
+    const disposeWorkspaces = c.workspaces.list.subscribe(() => {
       controller.reapplyOrder()
     })
     const disposeNav = mountNavigator({
@@ -366,7 +390,7 @@ export function apply(ctx: Context): void {
       health: healthSource,
       goto: gotoSource,
       openSession: id => {
-        ctx.sessions.open(id as SessionId)
+        c.sessions.open(id as SessionId)
       },
     })
     return () => {
