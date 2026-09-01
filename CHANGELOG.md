@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Align the devDependency pins to the published dsh `0.1.2-alpha.3` line and align `cordis`/`schemastery` dev pins to `^4.0.2`/`^3.18.2`. The pre-flight `session/pin` gate behavior is unchanged on `0.1.2-alpha.3` (the vocabulary still lacks the type and `Session.append` still cannot stamp the `ignorable` marker); the five-language READMEs record the alpha.3 fact.
+
 ## [0.7.0] - 2026-08-30
 
 ### Changed
