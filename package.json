@@ -5,7 +5,7 @@
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },
-  "description": "Pin sessions and workspaces to the top of the DeepSeek Harness sidebar with per-pin row colors 閳?a dual-face (host + client) dsh plugin with row [pin][swatch] controls, a header toggle, and a pinned panel.",
+  "description": "Pin sessions and workspaces to the top of the DeepSeek Harness sidebar with per-pin row colors 闁?a dual-face (host + client) dsh plugin with row [pin][swatch] controls, a header toggle, and a pinned panel.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PerryLink/dsh-session-pin.git"
@@ -34,7 +34,7 @@
     ],
     "compatibility": {
       "dshVersions": [
-        "0.1.1-rc.2"
+        "0.1.2-alpha.2"
       ]
     },
     "capability": {
