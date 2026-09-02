@@ -27,7 +27,7 @@
 
 | 维度 | 状态 |
 |---|---|
-| Harness | DeepSeek Harness `0.1.1-rc.2`（client 包 `0.1.1-rc.2`） |
+| Harness | DeepSeek Harness `0.1.2-alpha.5`（client 包 `0.1.2-alpha.5`） |
 | Node | `>= 22`（开发环境下限） |
 | 平台 | Web GUI（双面：Host + 浏览器） |
 | 模型 | 任意（纯 UI——无模型流量、无会话事件） |

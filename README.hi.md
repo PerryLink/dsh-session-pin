@@ -25,7 +25,7 @@
 
 | सतह | स्थिति |
 |---|---|
-| Harness | DeepSeek Harness `0.1.1-rc.2` (client packages `0.1.1-rc.2`) |
+| Harness | DeepSeek Harness `0.1.2-alpha.5` (client packages `0.1.2-alpha.5`) |
 | Node | `>= 22` (डेवलपमेंट आधार) |
 | प्लेटफ़ॉर्म | Web GUI (दोहरा चेहरा: host + browser) |
 | मॉडल | कोई भी (केवल UI — कोई मॉडल ट्रैफ़िक नहीं, कोई सत्र घटना नहीं) |
