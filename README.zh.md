@@ -31,7 +31,7 @@
 | Node | `>= 22`（开发环境下限） |
 | 平台 | Web GUI（双面：Host + 浏览器） |
 | 模型 | 任意（纯 UI——无模型流量、无会话事件） |
-| `session/pin` 事件 | 前置预检门控：在事件词汇表不认识该类型且 append 已丢弃 `ignorable` 标记的宿主（`0.1.2-alpha.3`）上绝不写入；投影降级到 settings 缓存 0.1.2-alpha.3（2026-09-01 已适配）：会话信封保留 ignorable 字段但仅用于存量日志读取兼容——Session.append 仍无法盖章，门控行为不变。 |
+| `session/pin` 事件 | 前置预检门控：在事件词汇表不认识该类型且 append 已丢弃 `ignorable` 标记的宿主（`0.1.2-alpha.5`）上绝不写入；投影降级到 settings 缓存 0.1.2-alpha.5（2026-09-02 已适配）：会话信封保留 ignorable 字段但仅用于存量日志读取兼容——Session.append 仍无法盖章，门控行为不变。 |
 
 ## What you get
 
@@ -65,11 +65,11 @@
 - **Host 半**（`src/index.ts`）——注册持久化的 `session-pin` settings namespace（两组置顶 id 列表、两张颜色映射与组织器状态，加上 host 策略 `maxPins`/`reorderOnLoad`/`pruneStale`）；无会话事件、无模型流量。
 - **浏览器半**（`src/client.ts`）——组装无框架依赖的 `PinStore`（settings 传输，降级为带版本信封的 `localStorage` 文档并跨标签页同步）、`PinController`（两级切换 / 换色 / 剪枝 / 重排状态机）与 UI：行覆盖层、可选行槽位注册、会话头开关、侧栏底部入口与已置顶面板。排序走 `ctx.workspaces`。
 - **日志支撑的写通道**——在挂载了内置 `dsh-session-pin` 服务的构建上，每次会话切换先经 `session.setPinned` RPC 提交（`session/pin` 事件日志是规范驻留），再把提交镜像写入 settings store；RPC 失败或超时自动降级为 settings 直写。
-- **日志支撑的投影读取**——`enableLogBacking`（host Config，fail-closed 默认关）挂载投影读取器，把实时 `session/pin` 事件折叠回规范置顶集，并把折叠后的 `pinned`/`colors` 镜像进 settings namespace。事件 schema、纯投影折叠（`foldPinEvents`）与前置预检门控追加缝（`PinLogAppender`）都在 `src/pin-log.ts`：宿主的已知事件词汇表与 `ignorable` append 标记在**首次写入之前**探测（结果按进程缓存），因此无法安全承载该事件的宿主——`0.1.2-alpha.3` 读路径对未知类型 fail-closed——一次写入都收不到；settings/localStorage store 仍是兼容与降级路径。
-- **客户端 seam**——浏览器半从 `@deepseek-ai/dsh-client-connection` 读取 `SessionId`/`WorkspaceId` 品牌（被移除的 `dsh-client-runtime` 包在现行宿主上已不存在）；会话头槽位的标准套件席位以本地结构契约方式定型。在 `0.1.2-alpha.3` 宿主上 `sessions.row.action` 行槽位不存在，会话行回落到 DOM overlay，行槽位注册保持挂起不抛错。
+- **日志支撑的投影读取**——`enableLogBacking`（host Config，fail-closed 默认关）挂载投影读取器，把实时 `session/pin` 事件折叠回规范置顶集，并把折叠后的 `pinned`/`colors` 镜像进 settings namespace。事件 schema、纯投影折叠（`foldPinEvents`）与前置预检门控追加缝（`PinLogAppender`）都在 `src/pin-log.ts`：宿主的已知事件词汇表与 `ignorable` append 标记在**首次写入之前**探测（结果按进程缓存），因此无法安全承载该事件的宿主——`0.1.2-alpha.5` 读路径对未知类型 fail-closed——一次写入都收不到；settings/localStorage store 仍是兼容与降级路径。
+- **客户端 seam**——浏览器半从 `@deepseek-ai/dsh-client-connection` 读取 `SessionId`/`WorkspaceId` 品牌（被移除的 `dsh-client-runtime` 包在现行宿主上已不存在）；会话头槽位的标准套件席位以本地结构契约方式定型。在 `0.1.2-alpha.5` 宿主上 `sessions.row.action` 行槽位不存在，会话行回落到 DOM overlay，行槽位注册保持挂起不抛错。
 - **构建**——esbuild 产出 Host ESM 半与包裹在 Web 引导工厂（`window.__ModuleLoader__.load({ id, factory })`）中的 client CJS 半；`react` 外置到外壳自身的 React，任何 `@deepseek-ai/*` 值导入渗入浏览器包都会使构建失败。
 
-**使用的扩展点：** `settings`（Host）；`sessions`、`workspaces`、`settingsScope`、`connection`、`remote`、`slots`（client）；`locale`（client，可选）；`conversation.session.header.actions`、`sidebar.footer.action`、`shell.overlay`，以及上游声明时的 `sessions.row.action` 行槽位（`0.1.2-alpha.3` 宿主不声明该槽位——会话行由 DOM overlay 覆盖）。**模型可见影响：无**——纯 UI 插件：不新增会话事件，不给任何模型请求增加 token。
+**使用的扩展点：** `settings`（Host）；`sessions`、`workspaces`、`settingsScope`、`connection`、`remote`、`slots`（client）；`locale`（client，可选）；`conversation.session.header.actions`、`sidebar.footer.action`、`shell.overlay`，以及上游声明时的 `sessions.row.action` 行槽位（`0.1.2-alpha.5` 宿主不声明该槽位——会话行由 DOM overlay 覆盖）。**模型可见影响：无**——纯 UI 插件：不新增会话事件，不给任何模型请求增加 token。
 
 ## Quick start
 
@@ -123,7 +123,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 
 - **权限**：`dshWorkshop` manifest 声明 `browser:local-storage`、`settings:read` 与 `settings:write`。
 - **数据**：置顶、颜色与组织器状态按浏览器存于 `session-pin` settings namespace；在 Web 代理不提供该 namespace 的构建上，降级到带版本信封的 `localStorage` 文档（v1 文档自动迁移）。不上传任何内容。
-- **会话日志**：默认无——本插件不新增会话事件，也不给任何模型请求增加 token。开启 `enableLogBacking` 后，host 把仅日志的 `session/pin` 事件（由上游 `session.setPinned` RPC 写入）折叠进规范置顶投影；`PinLogAppender` 对自身写入做前置预检门控，无法承载该事件的宿主（`0.1.2-alpha.3`）一次写入都收不到。模型可见影响仍为无。
+- **会话日志**：默认无——本插件不新增会话事件，也不给任何模型请求增加 token。开启 `enableLogBacking` 后，host 把仅日志的 `session/pin` 事件（由上游 `session.setPinned` RPC 写入）折叠进规范置顶投影；`PinLogAppender` 对自身写入做前置预检门控，无法承载该事件的宿主（`0.1.2-alpha.5`）一次写入都收不到。模型可见影响仍为无。
 
 ## Security boundaries
 
@@ -133,7 +133,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 
 ## Known limitations
 
-- **持久化范围** —— 在 Web 代理不提供 `session-pin` namespace 的构建上，置顶与颜色回退到浏览器本地的 `localStorage`；一旦上游暴露该 namespace，host 侧注册会自动成为持久层。在 `0.1.2-alpha.3` 宿主上，前置预检门控完全禁用日志追加（fail-closed 事件词汇表会拒收此类日志），投影在该宿主降级到 settings 缓存。
+- **持久化范围** —— 在 Web 代理不提供 `session-pin` namespace 的构建上，置顶与颜色回退到浏览器本地的 `localStorage`；一旦上游暴露该 namespace，host 侧注册会自动成为持久层。在 `0.1.2-alpha.5` 宿主上，前置预检门控完全禁用日志追加（fail-closed 事件词汇表会拒收此类日志），投影在该宿主降级到 settings 缓存。
 - **排序范围** —— 置顶位置仅在 **Manual** 排序下稳定；**Updated** 排序下核心的活动提升会重排活跃会话，`reorderOnLoad` 在加载时重申前缀。
 - **远程浏览器** —— 基线上 settings RPC 仅限回环；远程浏览器回退到浏览器本地的 `localStorage`。
 - **行徽标降级** —— 上游行槽位不可用时，会话行按标题文本匹配；标题重复时每个匹配行都显示徽标且只切换第一个匹配（外观性问题）。
