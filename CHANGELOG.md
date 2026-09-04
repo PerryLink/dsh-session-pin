@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.4] - 2026-09-04
+
+### Changed
+
+- Align the devDependency pins to the published dsh `0.1.2-rc.1` line (12 `@deepseek-ai/dsh-*` packages), the `dshWorkshop` compatibility list, and the compat workflow's CLI/base/headless installs; the five-language READMEs record the rc.1 facts. No behavior change: the pre-flight `session/pin` gate behavior is unchanged on `0.1.2-rc.1` (`Session.append` still cannot stamp the `ignorable` marker).
+
 ## [0.7.3] - 2026-09-02
 
 ### Docs

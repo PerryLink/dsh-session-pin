@@ -25,7 +25,7 @@ Standalone DeepSeek Harness plugin repository (`dsh-session-pin`). Development f
 
 `pnpm run typecheck && pnpm test && pnpm run test:coverage && pnpm run lint && pnpm run check:readmes && pnpm run build && pnpm run verify:self-contained && pnpm run verify:artifacts && pnpm pack`
 
-- `typecheck` resolves `@deepseek-ai/*` from the installed devDependencies (published `0.1.1-rc.2` line; this repo has no tsconfig paths). Client peers pin `>=0.1.1-rc.2 <0.2.0`; host peers keep the family baseline `>=0.1.0-rc.8 <0.2.0`.
+- `typecheck` resolves `@deepseek-ai/*` from the installed devDependencies (published `0.1.2-rc.1` line; this repo has no tsconfig paths). Client peers pin `>=0.1.1-rc.2 <0.2.0`; host peers keep the family baseline `>=0.1.0-rc.8 <0.2.0`.
 - `verify:artifacts` also proves the built host ESM face imports under plain Node and that the client bundle carries the ModuleLoader handshake.
 - The composition suite (`tests/composition.test.ts`) runs the BUILT entry through the real Loader in mkdtemp temp directories only.
 
