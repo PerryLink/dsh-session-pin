@@ -28,7 +28,7 @@
 
 | Surface | Status |
 |---|---|
-| Harness | DeepSeek Harness `0.1.2-rc.1` (client packages `0.1.2-rc.1`) |
+| Harness | DeepSeek Harness `dsh-v0.1.3-alpha.1` (GitHub tag; verified 2026-09-06: full gate chain + profile install smoke). npm dependency line `0.1.2-rc.1`, peers `>=0.1.2-rc.1 <0.2.0`. |
 | Node | `>= 22` (development floor) |
 | Platforms | Web GUI (dual-face: host + browser) |
 | Model | Any (UI-only — no model traffic, no session events) |
