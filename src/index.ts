@@ -88,6 +88,8 @@ export interface PinUserLayer {
   views: Array<Record<string, unknown>>
 }
 
+// Service Definition — PinSchema: the durable `session-pin` settings namespace
+// contract (user pin layer + host policy) mirrored by the browser half.
 /**
  * Namespace schema: the two ordered pinned id lists (newest pin first), the
  * two row-color maps, the navigator metadata (boards/tags/views), and the
@@ -150,6 +152,8 @@ export function apply(ctx: Context, config: Config): void {
     },
     applies: 'live' as const,
   } as unknown as SettingsRegisterOptions<Record<string, unknown>>
+  // Service Provider — register the `session-pin` settings namespace (the
+  // plugin's durable service surface) on the host settings service.
   const scope = ctx.settings.register(
     'session-pin' as SettingsNamespace,
     PinSchema,
@@ -167,6 +171,8 @@ export function apply(ctx: Context, config: Config): void {
  * @param scope - the registered `session-pin` settings scope receiving the fold.
  */
 function mountPinProjection(ctx: Context, scope: SettingsScope<Record<string, unknown>>): void {
+  // Consumer — fold live `session/event` events from the host event bus into
+  // the pin projection (mirrored back into the settings cache).
   const events = ctx as unknown as SessionEventSink
   events.on('session/event', (session, event) => {
     const id = session.id
