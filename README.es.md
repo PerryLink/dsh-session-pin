@@ -25,7 +25,7 @@
 
 | Superficie | Estado |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.3-alpha.1` (tag de GitHub; verificado el 2026-09-06: cadena completa de puertas + smoke de instalación de perfil). Pin npm `0.1.2-rc.1`, peers `>=0.1.2-rc.1 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.1.5-alpha.1` (tag de GitHub; verificado el 2026-09-09: cadena completa de puertas + smoke de instalación de perfil). Pin npm `0.1.2-rc.1`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0`. |
 | Node | `>= 22` (base mínima de desarrollo) |
 | Plataformas | Web GUI (doble cara: host + navegador) |
 | Modelo | Cualquiera (solo UI — sin tráfico de modelo, sin eventos de sesión) |

@@ -27,7 +27,7 @@
 
 | 维度 | 状态 |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.3-alpha.1`（GitHub tag，2026-09-06 已核验：完整门禁链 + profile 安装冒烟）。npm 依赖钉号 `0.1.2-rc.1`，peers `>=0.1.2-rc.1 <0.2.0`。 |
+| Harness | DeepSeek Harness `dsh-v0.1.5-alpha.1`（GitHub tag，2026-09-09 已核验：完整门禁链 + profile 安装冒烟）。npm 依赖钉号 `0.1.5-alpha.1`，peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0`。 |
 | Node | `>= 22`（开发环境下限） |
 | 平台 | Web GUI（双面：Host + 浏览器） |
 | 模型 | 任意（纯 UI——无模型流量、无会话事件） |
