@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.7.10] - 2026-09-10
+
+
 ### Fixed
 
 - Stop the pinned-prefix re-assertion from looping on its own echo (issue #4). `reorderMoves` plans its moves for sequential application, but the browser half issued the whole batch concurrently (`void moveToTop(id)`): with three or more pinned sessions in one account every move computed its anchor from the same pre-move snapshot, the resulting order was not the pinned prefix, and the host's list-change broadcast re-planned the same moves — an unbounded `workspace/insertSessionBefore` loop that ends in `net::ERR_INSUFFICIENT_RESOURCES`. The re-assertion now runs through `src/reorder-pump.ts`: one pass at a time (a list change landing during a pass collapses into a single re-check, so the echo of this client's own confirmed move cannot re-enter the reorder path), moves applied sequentially against the live order, and a plan issued at most once per observed order — replaying the same request sequence against an unchanged order cannot change it, which also bounds the unrelated list-churn path (`connection/reset` re-arms it). The pinned order itself and the `reorderOnLoad` gate are unchanged.
