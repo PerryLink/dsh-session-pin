@@ -10,9 +10,11 @@
  * Ordering goes through `workspace.insertSessionBefore` / `workspace.insertBefore`:
  * a newly pinned session moves to the front of its workspace account and a
  * newly pinned workspace moves to the front of the workspace list;
- * `reorderOnLoad` re-asserts both pinned prefixes once the lists are ready
- * and again on workspace-list changes — idempotent, so it cannot loop
- * against the core's own re-sorting.
+ * `reorderOnLoad` re-asserts both pinned prefixes. The re-assertion runs
+ * through the reorder pump: one pass at a time, moves applied sequentially,
+ * and a plan issued at most once per observed order — so the list-change echo
+ * of this client's own confirmed move cannot re-enter the reorder path and
+ * ping-pong against the host's broadcast (issue #4).
  *
  * The row slot (`sessions.row.action`) is the authoritative session-row
  * surface; while it is declared the DOM overlay skips session rows entirely
@@ -26,6 +28,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { PinController } from './pin-controller.ts'
 import { reorderMoves, topAnchor } from './pin-core.ts'
+import { createReorderPump, type ReorderMove } from './reorder-pump.ts'
 import { createPinStore, type PinScope, type StorageEventsLike, type StorageLike } from './pin-store.ts'
 import { mountNavigator } from './nav-ui.ts'
 import type { HealthEventFace } from './navigator.ts'
@@ -250,26 +253,60 @@ interface ClientCtxFace {
     }
   }
 
+  // Pinned sets the pump re-asserts: the controller hands them in on every
+  // reapply call, and the pump plans against the order the client observes.
+  let pinnedSessions: readonly string[] = []
+  let pinnedWorkspaces: readonly string[] = []
+
+  const reorderPump = createReorderPump({
+    plan: () => {
+      const snapshot = c.workspaces.list.getSnapshot()
+      const moves: ReorderMove[] = []
+      if (pinnedSessions.length > 0) {
+        for (const item of snapshot.items) {
+          for (const id of reorderMoves(item.sessionIds, pinnedSessions)) {
+            moves.push({ kind: 'session', id })
+          }
+        }
+      }
+      if (pinnedWorkspaces.length > 0) {
+        const ids = snapshot.items.map(item => item.workspaceId)
+        for (const id of reorderMoves(ids, pinnedWorkspaces)) moves.push({ kind: 'workspace', id })
+      }
+      // Signature of the observed order: any list change re-arms issuance.
+      return {
+        orderKey: snapshot.items.map(item => `${item.workspaceId}/${item.sessionIds.join(',')}`).join('|'),
+        moves,
+      }
+    },
+    apply: async (move) => {
+      if (move.kind === 'workspace') await moveWorkspaceToTop(move.id)
+      else await moveToTop(move.id)
+    },
+    onError: (error) => {
+      c.logger.warn(`session-pin: reorder pass failed: ${String(error)}`)
+    },
+  })
+
   const reorderer = {
     moveToTop,
     reapplyOrder: (pinned: readonly string[]): void => {
-      const snapshot = c.workspaces.list.getSnapshot()
-      for (const item of snapshot.items) {
-        const moves = reorderMoves(item.sessionIds as readonly string[], pinned)
-        for (const id of moves) void moveToTop(id)
-      }
+      pinnedSessions = [...pinned]
+      reorderPump.request()
     },
     moveWorkspaceToTop,
     reapplyWorkspaceOrder: (pinned: readonly string[]): void => {
-      const ids = c.workspaces.list.getSnapshot().items.map(item => item.workspaceId as string)
-      const moves = reorderMoves(ids, pinned)
-      for (const id of moves) void moveWorkspaceToTop(id)
+      pinnedWorkspaces = [...pinned]
+      reorderPump.request()
     },
   }
 
   const remote = buildPinRemote(ctx)
   c.on('connection/reset', () => {
     remote?.reenable()
+    // A reconnect re-arms the re-assertion: the plan recorded before the drop
+    // may have been rejected by the transport rather than by the host.
+    reorderPump.reset()
   })
   // The controller consumes the workspace list through a phase+ids face; the
   // UI faces keep the label projection.
