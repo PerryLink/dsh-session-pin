@@ -227,11 +227,25 @@ interface ClientCtxFace {
     }),
   }
 
+  // One-time warning dedupe for the silent degradation paths (P1-3): each
+  // fallback reports at most once per plugin mount instead of staying mute
+  // (or, worse, spamming every click).
+  const warnedOnce = new Set<string>()
+  const warnOnce = (key: string, message: string): void => {
+    if (warnedOnce.has(key)) return
+    warnedOnce.add(key)
+    c.logger.warn(message)
+  }
+
   const moveToTop = async (id: string): Promise<void> => {
     const sessionId = id as SessionId
     const snapshot = c.workspaces.list.getSnapshot()
     const workspace = snapshot.items.find(item => item.sessionIds.includes(sessionId))
-    if (workspace === undefined) return // ungrouped: no host-side account to reorder
+    if (workspace === undefined) {
+      // ungrouped: no host-side account to reorder (was silent).
+      warnOnce(`ungrouped:${id}`, `session-pin: session ${id} has no workspace account; host-side reorder skipped`)
+      return
+    }
     const anchor = topAnchor(workspace.sessionIds as readonly string[], id)
     if (anchor === undefined) return
     try {
@@ -245,7 +259,13 @@ interface ClientCtxFace {
     // Runtime probe: older baselines' workspaces service may predate the
     // workspace-level reorder RPC; the pin state still works without it.
     const insertBefore = c.workspaces.insertBefore as ((workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>) | undefined
-    if (typeof insertBefore !== 'function') return
+    if (typeof insertBefore !== 'function') {
+      // Runtime probe: older baselines' workspaces service may predate the
+      // workspace-level reorder RPC; the pin state still works without it
+      // (was silent).
+      warnOnce('workspace-reorder-unavailable', 'session-pin: workspace-level reorder is unavailable on this baseline; workspace pins keep working without it')
+      return
+    }
     const items = c.workspaces.list.getSnapshot().items
     const index = items.findIndex(item => item.workspaceId === id)
     if (index <= 0) return
@@ -412,10 +432,11 @@ interface ClientCtxFace {
       },
       openWorkspace: id => {
         // Runtime probe: baselines without the startSession helper degrade to
-        // a no-op (the panel row simply closes without jumping).
+        // a no-op (the panel row simply closes without jumping). Warned once,
+        // not on every click.
         const startSession = c.workspaces.startSession as ((workspaceId?: WorkspaceId) => void) | undefined
         if (typeof startSession === 'function') startSession(id as WorkspaceId)
-        else c.logger.warn('session-pin: workspace open unavailable on this baseline')
+        else warnOnce('workspace-open-unavailable', 'session-pin: workspace open unavailable on this baseline')
       },
     })
     const disposeWorkspaces = c.workspaces.list.subscribe(() => {
