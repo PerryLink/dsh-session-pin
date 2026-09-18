@@ -27,11 +27,11 @@
 
 | सतह | स्थिति |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.5-rc.2` (GitHub tag, 2026-09-11 को सत्यापित: पूर्ण गेट श्रृंखला + प्रोफ़ाइल इंस्टॉल स्मोक)। npm पिन `0.1.5-rc.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0`। |
+| Harness | DeepSeek Harness `dsh-v0.1.6-alpha.2` (GitHub tag, 2026-09-18 को सत्यापित: दोहरी-रूलर typecheck + स्थैतिक सीम जाँच; ब्राउज़र दौर अनुरक्षक के पास)। npm पिन `0.1.6-alpha.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0`। |
 | Node | `>= 22` (डेवलपमेंट आधार) |
 | प्लेटफ़ॉर्म | Web GUI (दोहरा चेहरा: host + browser) |
 | मॉडल | कोई भी (केवल UI — कोई मॉडल ट्रैफ़िक नहीं, कोई सत्र घटना नहीं) |
-| `session/pin` इवेंट | प्री-फ़्लाइट गेट: उन hosts पर कभी नहीं लिखे जाते जिनका इवेंट शब्दकोश प्रकार नहीं जानता और जिनके append ने `ignorable` मार्कर गिरा दिया (`0.1.2-rc.1`); projection settings cache पर degrade हो जाता है 0.1.2-rc.1 (2026-09-04 को अनुकूलित): सत्र लिफ़ाफ़ा अपना ignorable फ़ील्ड केवल संग्रहीत-लॉग पठन संगतता के लिए रखता है - Session.append अभी भी इसे स्टैम्प नहीं कर सकता, इसलिए गेट व्यवहार अपरिवर्तित है। |
+| `session/pin` इवेंट | प्री-फ़्लाइट गेट: केवल तभी लिखे जाते हैं जब host का रनटाइम इवेंट शब्दकोश प्रकार जानता है (alpha-लाइन का append अब `ignorable` मार्कर स्टैम्प नहीं कर सकता, इसलिए शब्दकोश ही गेट का एकमात्र संकेत है — 2026-09-18 को अनुकूलित); अन्यथा projection settings cache पर degrade हो जाता है और पहली लेखन से पहले एक चेतावनी दी जाती है। |
 
 ## What you get
 
@@ -40,6 +40,7 @@
 - **पिन के दो स्तर** — पूरे workspace और अलग-अलग session पिन करें; पिन किया workspace workspace सूची में और पिन किया session अपने खाते में सबसे आगे चला जाता है।
 - **हर पिन का पंक्ति-रंग** — हर पिन के बाद का रंग बटन 8-रंग की preset palette घुमाता है (Shift+क्लिक साफ़ करता है); पंक्ति को बाईं ओर एक accent पट्टी और पारभासी रंगत मिलती है।
 - **चार पिन सतहें** — हर पंक्ति पर एक hover `[pin][रंग]` जोड़ी, session हेडर में एक टॉगल, pinned पैनल वाली sidebar फुट क्रिया, और हर-ब्राउज़र टिकाऊ pinning जो रीस्टार्ट के बाद भी pin और रंग बनाए रखता है।
+- **क्लिक-से-खोलो** — साइडबार या pinned पैनल में पिन की गई पंक्ति पर क्लिक करने से session मौजूदा विंडो में खुलता है (वही सीम जो `/goto` इस्तेमाल करता है); दोनों alpha लाइन पर host के session-retain चैनल से नेविगेट करते हैं।
 - **कोर में शून्य बदलाव** — स्टॉक DSH Web GUI के लिए एक स्वतंत्र plugin; हर सतह पुरानी आधाररेखाओं पर सहज रूप से degrade हो जाती है।
 
 ```text
@@ -65,7 +66,7 @@
 - **Host आधा** (`src/index.ts`) — टिकाऊ `session-pin` settings namespace पंजीकृत करता है (दो पिन की गई id सूचियाँ, दो रंग मानचित्र और आयोजक state, साथ में host नीति `maxPins`/`reorderOnLoad`/`pruneStale`); कोई session event नहीं, कोई मॉडल ट्रैफ़िक नहीं।
 - **Browser आधा** (`src/client.ts`) — एक framework-मुक्त `PinStore` (settings transport, टैब-सिंक वाले versioned `localStorage` दस्तावेज़ पर degrade), एक `PinController` (दो-स्तरीय toggle / रंग चक्र / prune / reorder स्टेट मशीन) और UI जोड़ता है: पंक्ति ओवरले, वैकल्पिक पंक्ति-slot पंजीकरण, हेडर टॉगल, फुट क्रिया और pinned पैनल। क्रम `ctx.workspaces` से होकर जाता है।
 - **log-समर्थित लेखन चैनल** — बिल्ट-इन `dsh-session-pin` सेवा माउंट करने वाले builds पर, हर session टॉगल पहले `session.setPinned` RPC से commit होता है (`session/pin` इवेंट log canonical residence है) और settings store में mirror होता है; विफल या धीमा RPC सीधे settings लेखन पर degrade हो जाता है।
-- **log-समर्थित projection पठन** — `enableLogBacking` (host Config, fail-closed डिफ़ॉल्ट बंद) एक reader माउंट करता है जो लाइव `session/pin` इवेंट्स को canonical pin सेट में fold करता है और folded `pinned`/`colors` को settings namespace में mirror करता है। इवेंट schema, शुद्ध fold (`foldPinEvents`) और प्री-फ़्लाइट-गेटेड append seam (`PinLogAppender`) `src/pin-log.ts` में रहते हैं: host का ज्ञात इवेंट शब्दकोश और उसका `ignorable` append मार्कर **पहली लेखन से पहले** जाँचे जाते हैं (परिणाम प्रति-प्रक्रिया कैश), इसलिए जो hosts इवेंट को सुरक्षित नहीं ले जा सकते — `0.1.2-rc.1` पढ़ने पर अज्ञात प्रकारों को fail-closed अस्वीकार करता है — उन्हें एक भी लेखन नहीं मिलता; settings/localStorage store संगतता व degradation पथ बना रहता है।
+- **log-समर्थित projection पठन** — `enableLogBacking` (host Config, fail-closed डिफ़ॉल्ट बंद) एक reader माउंट करता है जो लाइव `session/pin` इवेंट्स को canonical pin सेट में fold करता है और folded `pinned`/`colors` को settings namespace में mirror करता है। इवेंट schema, शुद्ध fold (`foldPinEvents`) और प्री-फ़्लाइट-गेटेड append seam (`PinLogAppender`) `src/pin-log.ts` में रहते हैं: host का **रनटाइम इवेंट शब्दकोश** गेट का एकमात्र संकेत है, **पहले append से पहले** तय होता है (alpha-लाइन का append अब `ignorable` स्टैम्प नहीं कर सकता, इसलिए मार्कर जाँच हट गई), इसलिए जो hosts इवेंट को सुरक्षित नहीं ले जा सकते — जो शब्दकोश प्रकार नहीं जानता वह पढ़ने पर fail-closed होता है — उन्हें एक भी लेखन नहीं मिलता; settings/localStorage store संगतता व degradation पथ बना रहता है।
 - **क्लाइंट seam** — browser आधा `SessionId`/`WorkspaceId` brands को `@deepseek-ai/dsh-client-connection` से पढ़ता है (हटाया गया `dsh-client-runtime` पैकेज वर्तमान hosts पर मौजूद नहीं है); session-हेडर slot की standard-kit सीटें स्थानीय structural contract के रूप में टाइप होती हैं। `0.1.2-rc.1` hosts पर `sessions.row.action` पंक्ति slot घोषित नहीं है, इसलिए session पंक्तियाँ DOM ओवरले पर fallback करती हैं और slot पंजीकरण टाला रहता है।
 - **बिल्ड** — esbuild host ESM आधा और वेब बूट फ़ैक्टरी (`window.__ModuleLoader__.load({ id, factory })`) में लिपटा client CJS आधा उत्सर्जित करता है; `react` shell के अपने React पर externalize होता है, और कोई `@deepseek-ai/*` मान-आयात ब्राउज़र bundle में रिसने पर purity gate बिल्ड विफल कर देता है।
 

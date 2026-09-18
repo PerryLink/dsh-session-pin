@@ -29,11 +29,11 @@
 
 | 维度 | 状态 |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.5-rc.2`（GitHub tag，2026-09-11 已核验：完整门禁链 + profile 安装冒烟）。npm 依赖钉号 `0.1.5-rc.2`，peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0`。 |
+| Harness | DeepSeek Harness `dsh-v0.1.6-alpha.2`（GitHub tag，2026-09-18 已核验：双尺子 typecheck + 静态接缝检查；浏览器人工轮待维护者）。npm 依赖钉号 `0.1.6-alpha.2`，peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0`。 |
 | Node | `>= 22`（开发环境下限） |
 | 平台 | Web GUI（双面：Host + 浏览器） |
 | 模型 | 任意（纯 UI——无模型流量、无会话事件） |
-| `session/pin` 事件 | 前置预检门控：在事件词汇表不认识该类型且 append 已丢弃 `ignorable` 标记的宿主（`0.1.2-rc.1`）上绝不写入；投影降级到 settings 缓存 0.1.2-rc.1（2026-09-04 已适配）：会话信封保留 ignorable 字段但仅用于存量日志读取兼容——Session.append 仍无法盖章，门控行为不变。 |
+| `session/pin` 事件 | 前置预检门控：仅当宿主运行时事件词汇表认识该类型时才写入（alpha 线 append 已不能盖 `ignorable` 章，词汇表是唯一门控信号——2026-09-18 已适配）；否则投影降级到 settings 缓存，并在首次写入前发出一次告警。 |
 
 ## What you get
 
@@ -42,6 +42,7 @@
 - **两级置顶** —— 可置顶整个工作区与单个会话；置顶的工作区移到工作区列表最前，置顶的会话移到其账户最前。
 - **按置顶的行颜色** —— 每个图钉后的换色按钮循环 8 色预设调色板（Shift+单击清除）；着色的行获得左侧强调条加半透明底色。
 - **四个置顶入口** —— 每行的悬停 `[图钉][换色]` 控件、会话头置顶开关、侧栏底部入口加已置顶面板，以及跨重启保留的浏览器级持久化。
+- **点击即打开** —— 点击侧边栏或已置顶面板中的置顶行，会在当前窗口打开该会话（与 `/goto` 走同一条接缝）；两者都经宿主的会话 retain 通道导航。
 - **零核心改动** —— 独立插件，适用于原版 DSH Web GUI；每个新界面在旧基线上都能优雅降级。
 
 ```text
@@ -67,7 +68,7 @@
 - **Host 半**（`src/index.ts`）——注册持久化的 `session-pin` settings namespace（两组置顶 id 列表、两张颜色映射与组织器状态，加上 host 策略 `maxPins`/`reorderOnLoad`/`pruneStale`）；无会话事件、无模型流量。
 - **浏览器半**（`src/client.ts`）——组装无框架依赖的 `PinStore`（settings 传输，降级为带版本信封的 `localStorage` 文档并跨标签页同步）、`PinController`（两级切换 / 换色 / 剪枝 / 重排状态机）与 UI：行覆盖层、可选行槽位注册、会话头开关、侧栏底部入口与已置顶面板。排序走 `ctx.workspaces`。
 - **日志支撑的写通道**——在挂载了内置 `dsh-session-pin` 服务的构建上，每次会话切换先经 `session.setPinned` RPC 提交（`session/pin` 事件日志是规范驻留），再把提交镜像写入 settings store；RPC 失败或超时自动降级为 settings 直写。
-- **日志支撑的投影读取**——`enableLogBacking`（host Config，fail-closed 默认关）挂载投影读取器，把实时 `session/pin` 事件折叠回规范置顶集，并把折叠后的 `pinned`/`colors` 镜像进 settings namespace。事件 schema、纯投影折叠（`foldPinEvents`）与前置预检门控追加缝（`PinLogAppender`）都在 `src/pin-log.ts`：宿主的已知事件词汇表与 `ignorable` append 标记在**首次写入之前**探测（结果按进程缓存），因此无法安全承载该事件的宿主——`0.1.2-rc.1` 读路径对未知类型 fail-closed——一次写入都收不到；settings/localStorage store 仍是兼容与降级路径。
+- **日志支撑的投影读取**——`enableLogBacking`（host Config，fail-closed 默认关）挂载投影读取器，把实时 `session/pin` 事件折叠回规范置顶集，并把折叠后的 `pinned`/`colors` 镜像进 settings namespace。事件 schema、纯投影折叠（`foldPinEvents`）与前置预检门控追加缝（`PinLogAppender`）都在 `src/pin-log.ts`：宿主的**运行时事件词汇表**是唯一门控信号，在**首次追加之前**判定（alpha 线 append 已不能盖 `ignorable` 章，旧的标记探测已删除），因此无法安全承载该事件的宿主——读路径对未知类型 fail-closed——一次写入都收不到；settings/localStorage store 仍是兼容与降级路径。
 - **客户端 seam**——浏览器半从 `@deepseek-ai/dsh-client-connection` 读取 `SessionId`/`WorkspaceId` 品牌（被移除的 `dsh-client-runtime` 包在现行宿主上已不存在）；会话头槽位的标准套件席位以本地结构契约方式定型。在 `0.1.2-rc.1` 宿主上 `sessions.row.action` 行槽位不存在，会话行回落到 DOM overlay，行槽位注册保持挂起不抛错。
 - **构建**——esbuild 产出 Host ESM 半与包裹在 Web 引导工厂（`window.__ModuleLoader__.load({ id, factory })`）中的 client CJS 半；`react` 外置到外壳自身的 React，任何 `@deepseek-ai/*` 值导入渗入浏览器包都会使构建失败。
 
