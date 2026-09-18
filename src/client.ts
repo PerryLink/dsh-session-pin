@@ -162,7 +162,14 @@ export function apply(ctx: Context): void {
 interface ClientCtxFace {
   sessions: {
     list: { getSnapshot(): { byId: Record<string, { displayTitle: string; blank: boolean }>; ids: readonly unknown[]; phase: unknown }; subscribe(cb: () => void): () => void }
-    open: (id: SessionId) => void
+    // alpha.2 (B2): `ISessions.open` is removed — `retain` is the navigation
+    // seam. The `source` is not a free string: the alpha.2 host only admits
+    // 'controllerOperation' | 'gateway'; this plugin is a UI gateway, so the
+    // value is fixed. The returned disposal keeps the session retained in the
+    // host's list — call sites that fire-and-forget the navigation ignore it
+    // (the retained entry is exactly the "session is open" state the host UI
+    // already reflects) and never leak it past this boundary.
+    retain: (id: SessionId, opts: { source: 'gateway' }) => { dispose(): void }
     binding: (id: SessionId) => { session: { getSnapshot(): { nodes?: ReadonlyArray<{ kind?: string; time?: number }> } } } | undefined
   }
   workspaces: {
@@ -402,7 +409,10 @@ interface ClientCtxFace {
       workspaces: workspacesFace,
       t: key => translate(key),
       openSession: id => {
-        c.sessions.open(id as SessionId)
+        // Fire-and-forget navigation (B2): the `retain` disposal is
+        // intentionally not held — keeping the session retained in the host
+        // list is the desired open state.
+        c.sessions.retain(id as SessionId, { source: 'gateway' })
       },
       openWorkspace: id => {
         // Runtime probe: baselines without the startSession helper degrade to
@@ -427,7 +437,10 @@ interface ClientCtxFace {
       health: healthSource,
       goto: gotoSource,
       openSession: id => {
-        c.sessions.open(id as SessionId)
+        // Fire-and-forget navigation (B2): the `retain` disposal is
+        // intentionally not held — keeping the session retained in the host
+        // list is the desired open state.
+        c.sessions.retain(id as SessionId, { source: 'gateway' })
       },
     })
     return () => {
