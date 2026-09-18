@@ -8,7 +8,10 @@
  * and appender are deterministic, pure, and unit testable from the host half
  * and tests alike. The single sanctioned `@deepseek-ai/*` value import is
  * `KNOWN_SESSION_EVENT_TYPES` (the host vocabulary the pre-flight gate must
- * consult; mirrors dsh-click/src/events.ts).
+ * consult; mirrors dsh-click/src/events.ts). The append implementation is
+ * never source-probed: on the alpha.2 line `Session.append` can no longer
+ * stamp the `ignorable` marker, so the runtime vocabulary is the only gate
+ * signal (behavior criterion, not function text).
  *
  * Seam alignment: the `session/pin` event key and the `{ pinned, at }`
  * whole-value shape match the upstream `@deepseek-ai/dsh-session-pin` package
@@ -169,42 +172,19 @@ export function isMarkedIgnorable(result: unknown): boolean {
 }
 
 /**
- * Process-lifetime cache of the append-source probe, keyed by the append
- * implementation (every session in one host build shares one implementation,
- * and distinct implementations — tests, mixed builds — never share a verdict).
- */
-const appendSourceProbe = new WeakMap<(...args: never[]) => unknown, boolean>()
-
-/**
- * Whether one append implementation accepts the `ignorable` envelope option.
- * Source-probed: the option survives nowhere in the runtime signature, so the
- * function source is the only honest signal (the same probe dsh-click uses).
- * @param append - the session append implementation.
- * @returns true when the implementation's source references the marker.
- */
-export function appendAcceptsIgnorable(append: (...args: never[]) => unknown): boolean {
-  let probed = appendSourceProbe.get(append)
-  if (probed === undefined) {
-    probed = Function.prototype.toString.call(append).includes('ignorable')
-    appendSourceProbe.set(append, probed)
-  }
-  return probed
-}
-
-/**
- * Host-gated `session/pin` appender with a PRE-FLIGHT probe: the host's
+ * Host-gated `session/pin` appender with a PRE-FLIGHT gate: the host's
  * ability to carry the event is decided BEFORE the first write, never after
- * it. A host can carry the event only when its known event vocabulary covers
- * `session/pin` (the read path then accepts it) or its append still stamps the
- * `ignorable` envelope marker (builds that do not know the type then skip it
- * on restore). Envelope-less hosts whose vocabulary does not know the type
- * (0.1.0-rc.6/rc.8, 0.1.1-rc.2, and 0.1.2-alpha.1 — which fails closed on
- * unknown types at read) get NO append at all: the first write is where a
- * poisoned log would start, so it never happens, a one-time warning fires, and
- * the projection degrades to the settings cache. On 0.1.2-alpha.2 the envelope field is restored for stored-log read compatibility only - its Session.append still cannot stamp the marker, so the gate behavior is unchanged. `allowUnmarked` opts back
- * into marked appends on envelope-less hosts — deliberately dangerous — and
- * append failures are contained so a pin-log hiccup never disturbs the
- * caller.
+ * it. On the alpha.2 line the runtime event vocabulary is the only truth —
+ * `Session.append` can no longer stamp the `ignorable` envelope marker, so
+ * the old function-source probe that detected stamping hosts is dead (the
+ * gate now answers from the host's own vocabulary: a behavior criterion).
+ * A host whose vocabulary covers `session/pin` gets plain appends; every
+ * other host gets NO append at all — the first write is where a poisoned log
+ * would start, so it never happens, a one-time warning fires, and the
+ * projection degrades to the settings cache. `allowUnmarked` opts back into
+ * unmarked appends on hosts that do not know the type — deliberately
+ * dangerous — and append failures are contained so a pin-log hiccup never
+ * disturbs the caller.
  */
 export class PinLogAppender {
   private warned = false
@@ -215,21 +195,21 @@ export class PinLogAppender {
   ) {}
 
   /**
-   * Append one log-only pin value after the pre-flight host probe. Skipped
-   * entirely (with a one-time warning) when the host cannot carry the event,
-   * and contained on any append throw.
+   * Append one log-only pin value after the pre-flight host gate. Skipped
+   * entirely (with a one-time warning) when the host's vocabulary does not
+   * carry the event, and contained on any append throw.
    * @param session - the session whose log carries the event.
    * @param value - the whole-value pin state to commit.
    */
   append(session: PinAppendFace, value: PinLogValue): void {
     try {
-      if (!this.mayAppend(session)) {
+      if (!this.mayAppend()) {
         this.warnOnce()
         return
       }
-      // A known-type host reads the event plainly; an ignorable-stamped host
-      // (or the dangerous opt-in) requests the marker so builds that do not
-      // know the type skip it on restore.
+      // A known-type host reads the event plainly; the deliberately dangerous
+      // opt-in requests the marker so builds that do not know the type skip it
+      // on restore (best-effort — the alpha-line append cannot stamp it).
       const options = KNOWN_SESSION_EVENT_TYPES.has(PIN_EVENT) ? undefined : { ignorable: true } as const
       ;(session.append as unknown as (t: string, d: unknown, o?: { ignorable?: true }) => unknown)(PIN_EVENT, value, options)
     } catch (error) {
@@ -237,11 +217,10 @@ export class PinLogAppender {
     }
   }
 
-  /** Whether the host can carry `session/pin` (known vocabulary, ignorable stamp, or the dangerous opt-in). */
-  private mayAppend(session: PinAppendFace): boolean {
+  /** Whether the host can carry `session/pin` (the runtime vocabulary is the only signal, or the dangerous opt-in). */
+  private mayAppend(): boolean {
     if (this.allowUnmarked) return true
-    if (KNOWN_SESSION_EVENT_TYPES.has(PIN_EVENT)) return true
-    return appendAcceptsIgnorable(session.append as unknown as (...args: never[]) => unknown)
+    return KNOWN_SESSION_EVENT_TYPES.has(PIN_EVENT)
   }
 
   /** One-time warning that pin appends were disabled BEFORE the first write to keep session logs loadable. */
@@ -249,7 +228,7 @@ export class PinLogAppender {
     if (this.warned) return
     this.warned = true
     this.warn(
-      'this host cannot safely carry the session/pin event — its event vocabulary does not know the type and its append no longer accepts the ignorable marker, so a written event would make sessions unresumable on this build — session/pin appends are disabled before the first write and the projection degrades to the settings cache',
+      'this host cannot safely carry the session/pin event — its event vocabulary does not know the type and the alpha-line append can no longer stamp the ignorable marker, so a written event would make sessions unresumable on this build — session/pin appends are disabled before the first write and the projection degrades to the settings cache',
     )
   }
 }

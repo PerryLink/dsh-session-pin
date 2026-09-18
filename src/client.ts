@@ -84,46 +84,39 @@ function guardedStorage(): StorageLike {
   }
 }
 
-/** Narrow wire face of the upstream `session.setPinned` channel (post-D3 builds). */
+/** Narrow wire face of the upstream `session.setPinned` channel (post-D3 builds).
+ * The typed `api.session.setPinned` face was removed upstream on the alpha.2
+ * line (dead branch, deleted) — only the generic connection RPC remains. */
 interface SetPinnedChannel {
-  api?: {
-    session?: {
-      setPinned?: (payload: { sessionId: string; pinned: boolean }, signal?: AbortSignal) => Promise<{ ok: boolean }>
-    }
-  }
   rpc?: {
     call?: (channel: string, endpoint: string, payload: unknown, signal?: AbortSignal) => Promise<{ ok: boolean }>
   }
 }
 
 /**
- * Build the optional log-backed write channel. The typed api face is
- * preferred; the generic connection RPC covers builds whose api face predates
- * the method but whose gateway serves the endpoint. A failed commit disables
- * the remote (the store takes over) until the next connection generation
- * re-enables it. Baselines without the endpoint simply never commit through
- * it — one failed probe on the first toggle, then the store path.
+ * Build the optional log-backed write channel through the generic connection
+ * RPC. A failed commit disables the remote (the store takes over) until the
+ * next connection generation re-enables it. Baselines without the endpoint
+ * simply never commit through it — one failed probe on the first toggle, then
+ * the store path.
  * @param ctx - client cordis context.
  * @returns the remote, or undefined when no channel surface exists.
  */
 /** A remote commit that neither settles nor rejects within this window
  * degrades to the store path (the RPC channel is best-effort by contract). */
-const REMOTE_COMMIT_TIMEOUT_MS = 4000
+const REMOTE_COMMIT_TIMEOUT_MS = 300
 
 function buildPinRemote(ctx: Context): PinRemoteLike | undefined {
   // Boundary cast: the connection face is consumed through the narrow wire
   // channel below (the npm baseline's Context merge does not name the
   // upstream setPinned method, and may not pull the connection merge at all).
   const connection = (ctx as unknown as { connection?: SetPinnedChannel }).connection
-  const typed = connection?.api?.session?.setPinned
   const generic = connection?.rpc?.call
-  if (typeof typed !== 'function' && typeof generic !== 'function') return undefined
+  if (typeof generic !== 'function') return undefined
   let enabled = true
   const commit = async (id: string, pinned: boolean): Promise<{ ok: true } | { ok: false }> => {
     try {
-      const call = typeof typed === 'function'
-        ? typed({ sessionId: id, pinned })
-        : generic!('/api', 'session.setPinned', { sessionId: id, pinned })
+      const call = generic('/api', 'session.setPinned', { sessionId: id, pinned })
       const timeout = new Promise<{ ok: false }>(resolve => {
         setTimeout(() => resolve({ ok: false }), REMOTE_COMMIT_TIMEOUT_MS)
       })
@@ -162,7 +155,14 @@ export function apply(ctx: Context): void {
 interface ClientCtxFace {
   sessions: {
     list: { getSnapshot(): { byId: Record<string, { displayTitle: string; blank: boolean }>; ids: readonly unknown[]; phase: unknown }; subscribe(cb: () => void): () => void }
-    open: (id: SessionId) => void
+    // alpha.2 (B2): `ISessions.open` is removed — `retain` is the navigation
+    // seam. The `source` is not a free string: the alpha.2 host only admits
+    // 'controllerOperation' | 'gateway'; this plugin is a UI gateway, so the
+    // value is fixed. The returned disposal keeps the session retained in the
+    // host's list — call sites that fire-and-forget the navigation ignore it
+    // (the retained entry is exactly the "session is open" state the host UI
+    // already reflects) and never leak it past this boundary.
+    retain: (id: SessionId, opts: { source: 'gateway' }) => { dispose(): void }
     binding: (id: SessionId) => { session: { getSnapshot(): { nodes?: ReadonlyArray<{ kind?: string; time?: number }> } } } | undefined
   }
   workspaces: {
@@ -181,7 +181,10 @@ interface ClientCtxFace {
   inject(keys: string[], cb: (scope: { effect: (cb: () => unknown, label?: string) => unknown; locale: { register(ns: string, dicts: unknown): unknown; bind(ns: string): (key: string) => string } }) => void): void
   effect(cb: () => unknown, label?: string): unknown
 }  const c = ctx as unknown as ClientCtxFace
-  const styleTag = injectStyles()
+  // The host removes plugin `<style data-plugin="…">` nodes on this plugin's
+  // unload/reload (entry lifecycle) — self-removal here would also delete
+  // other plugins' style nodes in the same flush window (N8).
+  injectStyles()
   const scope = c.settingsScope.bind<PinScope>({ namespace: NAMESPACE })
   const store = createPinStore(scope, guardedStorage(), window as unknown as StorageEventsLike)
 
@@ -224,11 +227,25 @@ interface ClientCtxFace {
     }),
   }
 
+  // One-time warning dedupe for the silent degradation paths (P1-3): each
+  // fallback reports at most once per plugin mount instead of staying mute
+  // (or, worse, spamming every click).
+  const warnedOnce = new Set<string>()
+  const warnOnce = (key: string, message: string): void => {
+    if (warnedOnce.has(key)) return
+    warnedOnce.add(key)
+    c.logger.warn(message)
+  }
+
   const moveToTop = async (id: string): Promise<void> => {
     const sessionId = id as SessionId
     const snapshot = c.workspaces.list.getSnapshot()
     const workspace = snapshot.items.find(item => item.sessionIds.includes(sessionId))
-    if (workspace === undefined) return // ungrouped: no host-side account to reorder
+    if (workspace === undefined) {
+      // ungrouped: no host-side account to reorder (was silent).
+      warnOnce(`ungrouped:${id}`, `session-pin: session ${id} has no workspace account; host-side reorder skipped`)
+      return
+    }
     const anchor = topAnchor(workspace.sessionIds as readonly string[], id)
     if (anchor === undefined) return
     try {
@@ -242,7 +259,13 @@ interface ClientCtxFace {
     // Runtime probe: older baselines' workspaces service may predate the
     // workspace-level reorder RPC; the pin state still works without it.
     const insertBefore = c.workspaces.insertBefore as ((workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>) | undefined
-    if (typeof insertBefore !== 'function') return
+    if (typeof insertBefore !== 'function') {
+      // Runtime probe: older baselines' workspaces service may predate the
+      // workspace-level reorder RPC; the pin state still works without it
+      // (was silent).
+      warnOnce('workspace-reorder-unavailable', 'session-pin: workspace-level reorder is unavailable on this baseline; workspace pins keep working without it')
+      return
+    }
     const items = c.workspaces.list.getSnapshot().items
     const index = items.findIndex(item => item.workspaceId === id)
     if (index <= 0) return
@@ -402,14 +425,18 @@ interface ClientCtxFace {
       workspaces: workspacesFace,
       t: key => translate(key),
       openSession: id => {
-        c.sessions.open(id as SessionId)
+        // Fire-and-forget navigation (B2): the `retain` disposal is
+        // intentionally not held — keeping the session retained in the host
+        // list is the desired open state.
+        c.sessions.retain(id as SessionId, { source: 'gateway' })
       },
       openWorkspace: id => {
         // Runtime probe: baselines without the startSession helper degrade to
-        // a no-op (the panel row simply closes without jumping).
+        // a no-op (the panel row simply closes without jumping). Warned once,
+        // not on every click.
         const startSession = c.workspaces.startSession as ((workspaceId?: WorkspaceId) => void) | undefined
         if (typeof startSession === 'function') startSession(id as WorkspaceId)
-        else c.logger.warn('session-pin: workspace open unavailable on this baseline')
+        else warnOnce('workspace-open-unavailable', 'session-pin: workspace open unavailable on this baseline')
       },
     })
     const disposeWorkspaces = c.workspaces.list.subscribe(() => {
@@ -427,7 +454,10 @@ interface ClientCtxFace {
       health: healthSource,
       goto: gotoSource,
       openSession: id => {
-        c.sessions.open(id as SessionId)
+        // Fire-and-forget navigation (B2): the `retain` disposal is
+        // intentionally not held — keeping the session retained in the host
+        // list is the desired open state.
+        c.sessions.retain(id as SessionId, { source: 'gateway' })
       },
     })
     return () => {
@@ -438,7 +468,6 @@ interface ClientCtxFace {
       disposeGate()
       disposeRowSlot()
       controller.stop()
-      styleTag.remove()
     }
   }, 'session-pin: pin store, badges, slots, and navigation organizer')
 }

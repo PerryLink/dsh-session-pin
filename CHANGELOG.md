@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Clicking a pinned row now opens the session.** The browser half navigates through `ISessions.retain(id, { source: 'gateway' })` — the `open` method was removed on the `0.1.6` line (B2) — so clicking a pinned row in the sidebar or the pinned panel opens the session in the current window (the same seam `/goto` uses). The structural client face was updated together with the two call sites; the `retain` disposal is intentionally not held (keeping the session retained is the desired open state).
+- **The style node is no longer self-removed.** The plugin's `<style data-plugin="dsh-session-pin">` node is now left for the host's entry lifecycle to remove on unload/reload — self-removal in the disposal flush could also delete other plugins' style nodes (N8).
+- **The log-backed append gate now answers from the runtime event vocabulary.** The old function-source probe (`Function.prototype.toString().includes('ignorable')`) is deleted: on the alpha line `Session.append` can no longer stamp the `ignorable` marker, so a host whose event vocabulary does not know `session/pin` gets no append at all (one warning before the first write, projection degrades to the settings cache). `allowUnmarked` keeps its deliberately dangerous opt-in meaning.
+- **Dead `session.setPinned` typed branch removed; remote commit timeout capped at 300ms** (was 4000ms). The generic connection RPC remains the log-backed write channel.
+- **Silent fallbacks now warn once.** The ungrouped-session reorder skip, the missing workspace-reorder RPC, and the missing `startSession` helper each report one warning per plugin mount instead of staying mute (or spamming every click).
+- **Raise the dev/test dependency line to `0.1.6-alpha.2`** and declare `dsh.manifestVersion: 1` plus the three-clause `engines.dsh` range (G-3). The peer range already carries the `>=0.1.6-0 <0.2.0` clause (spread by the kit sync).
+
+### Docs
+
+- Five-language READMEs: the compatibility baseline moves to `dsh-v0.1.6-alpha.2` with the three-clause peer range; the `session/pin` gate wording now describes the vocabulary-only criterion; a "click-to-open" bullet documents the pinned-row navigation.
+
 ## [0.7.11] - 2026-09-12
 
 ### Changed
