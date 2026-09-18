@@ -188,7 +188,10 @@ interface ClientCtxFace {
   inject(keys: string[], cb: (scope: { effect: (cb: () => unknown, label?: string) => unknown; locale: { register(ns: string, dicts: unknown): unknown; bind(ns: string): (key: string) => string } }) => void): void
   effect(cb: () => unknown, label?: string): unknown
 }  const c = ctx as unknown as ClientCtxFace
-  const styleTag = injectStyles()
+  // The host removes plugin `<style data-plugin="…">` nodes on this plugin's
+  // unload/reload (entry lifecycle) — self-removal here would also delete
+  // other plugins' style nodes in the same flush window (N8).
+  injectStyles()
   const scope = c.settingsScope.bind<PinScope>({ namespace: NAMESPACE })
   const store = createPinStore(scope, guardedStorage(), window as unknown as StorageEventsLike)
 
@@ -451,7 +454,6 @@ interface ClientCtxFace {
       disposeGate()
       disposeRowSlot()
       controller.stop()
-      styleTag.remove()
     }
   }, 'session-pin: pin store, badges, slots, and navigation organizer')
 }
