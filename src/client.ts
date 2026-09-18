@@ -84,46 +84,39 @@ function guardedStorage(): StorageLike {
   }
 }
 
-/** Narrow wire face of the upstream `session.setPinned` channel (post-D3 builds). */
+/** Narrow wire face of the upstream `session.setPinned` channel (post-D3 builds).
+ * The typed `api.session.setPinned` face was removed upstream on the alpha.2
+ * line (dead branch, deleted) — only the generic connection RPC remains. */
 interface SetPinnedChannel {
-  api?: {
-    session?: {
-      setPinned?: (payload: { sessionId: string; pinned: boolean }, signal?: AbortSignal) => Promise<{ ok: boolean }>
-    }
-  }
   rpc?: {
     call?: (channel: string, endpoint: string, payload: unknown, signal?: AbortSignal) => Promise<{ ok: boolean }>
   }
 }
 
 /**
- * Build the optional log-backed write channel. The typed api face is
- * preferred; the generic connection RPC covers builds whose api face predates
- * the method but whose gateway serves the endpoint. A failed commit disables
- * the remote (the store takes over) until the next connection generation
- * re-enables it. Baselines without the endpoint simply never commit through
- * it — one failed probe on the first toggle, then the store path.
+ * Build the optional log-backed write channel through the generic connection
+ * RPC. A failed commit disables the remote (the store takes over) until the
+ * next connection generation re-enables it. Baselines without the endpoint
+ * simply never commit through it — one failed probe on the first toggle, then
+ * the store path.
  * @param ctx - client cordis context.
  * @returns the remote, or undefined when no channel surface exists.
  */
 /** A remote commit that neither settles nor rejects within this window
  * degrades to the store path (the RPC channel is best-effort by contract). */
-const REMOTE_COMMIT_TIMEOUT_MS = 4000
+const REMOTE_COMMIT_TIMEOUT_MS = 300
 
 function buildPinRemote(ctx: Context): PinRemoteLike | undefined {
   // Boundary cast: the connection face is consumed through the narrow wire
   // channel below (the npm baseline's Context merge does not name the
   // upstream setPinned method, and may not pull the connection merge at all).
   const connection = (ctx as unknown as { connection?: SetPinnedChannel }).connection
-  const typed = connection?.api?.session?.setPinned
   const generic = connection?.rpc?.call
-  if (typeof typed !== 'function' && typeof generic !== 'function') return undefined
+  if (typeof generic !== 'function') return undefined
   let enabled = true
   const commit = async (id: string, pinned: boolean): Promise<{ ok: true } | { ok: false }> => {
     try {
-      const call = typeof typed === 'function'
-        ? typed({ sessionId: id, pinned })
-        : generic!('/api', 'session.setPinned', { sessionId: id, pinned })
+      const call = generic('/api', 'session.setPinned', { sessionId: id, pinned })
       const timeout = new Promise<{ ok: false }>(resolve => {
         setTimeout(() => resolve({ ok: false }), REMOTE_COMMIT_TIMEOUT_MS)
       })
