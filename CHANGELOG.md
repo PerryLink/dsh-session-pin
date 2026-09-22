@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.7.12] - 2026-09-22
+
 ### Changed
 
 - **Host half migrated to the `0.1.7` settings contract — the plugin's durable settings surface is now its own live Config.** `ctx.settings.register(ns, schema, { base, applies })` and the whole `SettingsProvider` / `SettingsScope` / `SettingsNamespace` / `SettingsRegisterOptions` family were deleted from `@deepseek-ai/dsh-settings` (which is now `SettingsForms`), and the old call site is gone. **Editable-surface decision:** the removed namespace held two distinct kinds of field, and only one of them was a host-only policy mirror. The pin data (`pinned`, `workspacePinned`, `colors`, `workspaceColors`, `boards`, `tags`, `views`) was genuinely user-editable durable configuration — the browser half wrote it through the settings scope and the removed provider persisted it — so its correct landing point is the **volatile Config fields**, and the same is true of the eight policy/switches the browser half READS from the resolved snapshot (`maxPins`, `reorderOnLoad`, `pruneStale`, `enableBoards`, `enableTags`, `enableViews`, `enableHealth`, `enableGoto`): under the new model a client's only view of a host entry is its volatile fields, so leaving them ordinary would have silently dropped a configured `maxPins` in the browser. `enableLogBacking` stays **ordinary** Config — it was never a field of the old namespace and no browser half reads it — so no new editable surface was invented. Every default is unchanged, and `.volatile()` sits on a fixed object path in each case (the schemastery constraint).
