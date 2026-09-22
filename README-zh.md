@@ -19,6 +19,7 @@
 [![Version](https://img.shields.io/github/v/tag/PerryLink/dsh-session-pin?label=version)](https://github.com/PerryLink/dsh-session-pin/releases)
 [![npm version](https://img.shields.io/npm/v/dsh-session-pin)](https://www.npmjs.com/package/dsh-session-pin)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-session-pin)](https://www.npmjs.com/package/dsh-session-pin)
+[![dshfind](https://dshfind.com/api/badge/PerryLink/dsh-session-pin?metric=downloads&lang=zh)](https://dshfind.com/zh/plugins/PerryLink/dsh-session-pin?ref=badge)
 
 [English](README.md) · [简体中文](README-zh.md) · [Español](README-es.md) · [Português](README-pt.md) · [हिन्दी](README-hi.md)
 
