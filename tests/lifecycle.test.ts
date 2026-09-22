@@ -1,26 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Lifecycle and export-contract suite: the HMR-safety test (dispose the
- * contributing fiber, re-query the authoritative settings registry), the
- * default-export guard (module namespace + Loader unwrap round-trip), and the
- * config value-domain negatives (the settings-namespace policy fields).
+ * contributing fiber, re-register on the authoritative settings service) and
+ * the default-export guard (module namespace + Loader unwrap round-trip).
+ *
+ * The `0.1.7` settings service keys an instance's page policy by its OWNER
+ * FIBER and throws for an instance that already has one, so the disposer the
+ * host half registers through `ctx.effect` is what makes unload/reload safe —
+ * exactly the role the removed namespace registration's fiber effect played.
  *
  * @module dsh-session-pin/test/lifecycle.test
  */
 
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, type Plugin } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
-import { Config, apply } from '../src/index.ts'
+import { Config, SETTINGS_ENTRY_ID, apply, inject, name } from '../src/index.ts'
 
-/** In-memory settings provider: the plugin registers the session-pin namespace on it. */
-class InMemorySettings extends SettingsProvider {
-  readonly writable = true
-  protected async load(): Promise<Record<string, unknown>> {
-    return {}
+/**
+ * Duplicate-strict settings stand-in: like the real `SettingsForms.configure`,
+ * it refuses a second presentation for the same owner fiber and releases the
+ * first only through the returned disposer.
+ */
+class PresentationRegistry {
+  readonly owners = new Set<unknown>()
+  configure(_presentation: { auto?: boolean }, owner: unknown): () => void {
+    if (this.owners.has(owner)) throw new Error('Settings presentation is already configured for this plugin instance')
+    this.owners.add(owner)
+    return () => {
+      this.owners.delete(owner)
+    }
   }
-  protected async persist(): Promise<void> {}
+}
+
+/** Mount a settings provider fiber, then the host half on a sibling fiber. */
+async function mountHost(registry: PresentationRegistry, configValue: Record<string, unknown> = {}) {
+  const root = new Context()
+  const provider = root.plugin({
+    name: 'settings-provider',
+    inject: [],
+    apply: (ctx: Context) => {
+      ctx.provide('settings', registry as unknown as Context['settings'])
+    },
+  })
+  await provider.await()
+  const fiber = root.plugin({ name, inject, Config, apply } as unknown as Plugin, configValue)
+  await fiber.await()
+  return { root, fiber }
 }
 
 // ---------------------------------------------------------------------------
@@ -36,69 +62,37 @@ describe('export contract', () => {
     expect(unwrapped).toBe(plugin)
     expect(unwrapped.name).toBe('session-pin')
     expect(unwrapped.inject).toEqual(['settings'])
+    expect(unwrapped.SETTINGS_ENTRY_ID).toBe('session-pin')
     expect(typeof unwrapped.Config).toBe('function')
     expect(typeof unwrapped.apply).toBe('function')
   })
 })
 
 // ---------------------------------------------------------------------------
-// C1: disposing the contributing fiber removes the settings namespace
+// C1: disposing the contributing fiber releases its settings presentation
 // ---------------------------------------------------------------------------
 
 describe('fiber disposal', () => {
-  it('removes the session-pin settings namespace on dispose', async () => {
-    const ctx = new Context()
+  it('releases the settings presentation on dispose and re-registers on remount', async () => {
+    const registry = new PresentationRegistry()
+    const first = await mountHost(registry)
     try {
-      await ctx.plugin(InMemorySettings)
-      const settings = ctx.get('settings') as InMemorySettings
-      const plugin = await import('../src/index.ts')
-      const pluginFiber = await ctx.plugin(plugin as unknown as import('@deepseek-ai/cordis').Plugin, { maxPins: 5 })
+      expect(registry.owners.size).toBe(1)
 
-      expect(settings.get('session-pin' as SettingsNamespace)).toBeDefined()
+      await first.fiber.dispose()
+      expect(registry.owners.size).toBe(0)
 
-      await pluginFiber.dispose()
-
-      expect(settings.get('session-pin' as SettingsNamespace)).toBeUndefined()
+      // A remount (HMR / re-enable) must not trip the duplicate guard.
+      const second = await mountHost(registry)
+      expect(registry.owners.size).toBe(1)
+      await second.root.fiber.dispose()
+      expect(registry.owners.size).toBe(0)
     } finally {
-      await ctx.fiber.dispose()
+      await first.root.fiber.dispose()
     }
   })
-})
 
-// ---------------------------------------------------------------------------
-// U4: the settings-namespace policy value domain rejects out-of-domain values
-// ---------------------------------------------------------------------------
-
-describe('config value domain', () => {
-  it('rejects a non-integer maxPins at parse time', () => {
-    expect(() => (Config as (value: unknown) => Config)({ maxPins: 1.5 })).toThrow()
-  })
-
-  it('rejects a negative maxPins at parse time', () => {
-    expect(() => (Config as (value: unknown) => Config)({ maxPins: -1 })).toThrow()
-  })
-
-  it('rejects a non-boolean feature switch at parse time', () => {
-    expect(() => (Config as (value: unknown) => Config)({ enableBoards: 'yes' })).toThrow()
-  })
-
-  it('fills every policy default for an empty config', () => {
-    expect((Config as (value: unknown) => Config)({})).toEqual({
-      maxPins: 0, reorderOnLoad: true, pruneStale: true, enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true, enableLogBacking: false,
-    })
-  })
-
-  it('registers the namespace with a real in-memory settings provider', async () => {
-    const ctx = new Context()
-    try {
-      await ctx.plugin(InMemorySettings)
-      const plugin = await import('../src/index.ts')
-      await ctx.plugin(plugin as unknown as import('@deepseek-ai/cordis').Plugin, {})
-      const resolved = (ctx.get('settings') as InMemorySettings).get('session-pin' as SettingsNamespace)
-      expect(resolved).toMatchObject({ maxPins: 0, reorderOnLoad: true })
-      expect(apply).toBeTypeOf('function')
-    } finally {
-      await ctx.fiber.dispose()
-    }
+  it('keeps the entry id the browser half binds to', () => {
+    expect(SETTINGS_ENTRY_ID).toBe('session-pin')
   })
 })

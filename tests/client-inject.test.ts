@@ -69,9 +69,11 @@ function fakeRuntimeServices() {
       insertBefore: async (): Promise<void> => {},
       startSession: (): void => {},
     },
-    settingsScope: {
-      bind: () => ({
+    configForms: {
+      get: () => ({
         getSnapshot: () => ({
+          mode: 'host',
+          status: 'ready',
           value: {
             pinned: [],
             workspacePinned: [],
@@ -82,12 +84,11 @@ function fakeRuntimeServices() {
             pruneStale: true,
           },
         }),
-        set: async (): Promise<void> => {},
+        set: async (): Promise<boolean> => true,
         subscribe: () => (): void => {},
       }),
     },
     connection: {},
-    remote: {},
   }
 }
 
@@ -100,7 +101,7 @@ describe('session-pin client apply on a real cordis graph', () => {
   })
 
   it('declares every service its apply reads directly, including slots', () => {
-    const reads = ['sessions', 'workspaces', 'settingsScope', 'connection', 'slots']
+    const reads = ['sessions', 'workspaces', 'configForms', 'connection', 'slots']
     for (const name of reads) {
       expect(inject, `inject must declare "${name}"`).toContain(name)
     }

@@ -28,7 +28,7 @@
 
 | Superfície | Status |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.6-alpha.2` (tag do GitHub; verificado em 2026-09-18: typecheck de régua dupla + verificações estáticas de costura; a rodada de navegador fica com o mantenedor). Pin npm `0.1.6-alpha.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.1.7-alpha.1` (tag do GitHub; verificado em 2026-09-22: typecheck de régua dupla + suítes unitárias/de composição + verificações estáticas de costura; a rodada de navegador fica com o mantenedor). Pin npm `0.1.7-alpha.1`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0`. |
 | Node | `>= 22` (piso de desenvolvimento) |
 | Plataformas | Web GUI (duas faces: host + navegador) |
 | Modelo | Qualquer (somente UI — sem tráfego de modelo, sem eventos de sessão) |
@@ -64,14 +64,14 @@ Quatro capacidades locais do navegador organizam o trabalho multi-sessão por ci
 
 ## How it works
 
-- **Metade host** (`src/index.ts`) — registra o namespace de settings durável `session-pin` (as duas listas de ids fixados, os dois mapas de cor e o estado do organizador, mais a política do host `maxPins`/`reorderOnLoad`/`pruneStale`); sem eventos de sessão, sem tráfego de modelo.
-- **Metade navegador** (`src/client.ts`) — monta um `PinStore` sem framework (transporte de settings, degradando para um documento versionado de `localStorage` com sincronização entre abas), um `PinController` (máquina de estados de alternar / ciclo de cor / podar / reordenar) e a UI: a sobreposição de linhas, o registro opcional do slot, o alternador de cabeçalho, a ação do rodapé e o painel de fixados. A ordenação passa por `ctx.workspaces`.
+- **Metade host** (`src/index.ts`) — declara o formulário de settings `session-pin` como o próprio Config ao vivo do plugin: as duas listas de ids fixados, os dois mapas de cor, o estado do organizador e a política do host (`maxPins`/`reorderOnLoad`/`pruneStale` mais os cinco interruptores de recurso) são todos campos `.volatile()`. No contrato de settings `0.1.7` o namespace de um formulário é o id local de sua entrada de perfil, então a linha `id: session-pin` do patch do bundle dá nome ao formulário, a página Plugins o edita e as edições aceitas são aplicadas a quente ao plugin em execução; sem eventos de sessão, sem tráfego de modelo.
+- **Metade navegador** (`src/client.ts`) — monta um `PinStore` sem framework (o formulário de Config ao vivo da metade host, lido via `ctx.configForms.get(entryId)`, degradando para um documento versionado de `localStorage` com sincronização entre abas), um `PinController` (máquina de estados de alternar / ciclo de cor / podar / reordenar) e a UI: a sobreposição de linhas, o registro opcional do slot, o alternador de cabeçalho, a ação do rodapé e o painel de fixados. A ordenação passa por `ctx.workspaces`.
 - **Canal de escrita respaldado por log** — em builds que montam o serviço integrado `dsh-session-pin`, cada alternância de sessão confirma primeiro pelo RPC `session.setPinned` (o log de eventos `session/pin` é a residência canônica) e espelha no armazenamento de settings; um RPC falho ou lento degrada para escrita direta.
-- **Leitura de projeção respaldada por log** — `enableLogBacking` (Config do host, padrão desligado fail-closed) monta um leitor que dobra eventos `session/pin` ao vivo para o conjunto canônico e espelha `pinned`/`colors` no namespace de settings. O schema, o fold puro (`foldPinEvents`) e a costura de append com portão prévio (`PinLogAppender`) vivem em `src/pin-log.ts`: o vocabulário de eventos em tempo de execução é o único sinal do portão, decidido ANTES do primeiro append (o append da linha alpha não consegue mais estampar `ignorable`, então a sonda do marcador desapareceu), então hosts que não podem transportar o evento com segurança — um vocabulário que não conhece o tipo falha fechado na leitura — nunca recebem um; o armazenamento settings/localStorage segue como rota de compatibilidade e degradação.
+- **Leitura de projeção respaldada por log** — `enableLogBacking` (Config do host, padrão desligado fail-closed) monta um leitor que dobra eventos `session/pin` ao vivo para o conjunto canônico e espelha `pinned`/`colors` no Config ao vivo. O schema, o fold puro (`foldPinEvents`) e a costura de append com portão prévio (`PinLogAppender`) vivem em `src/pin-log.ts`: o vocabulário de eventos em tempo de execução é o único sinal do portão, decidido ANTES do primeiro append (o append da linha alpha não consegue mais estampar `ignorable`, então a sonda do marcador desapareceu), então hosts que não podem transportar o evento com segurança — um vocabulário que não conhece o tipo falha fechado na leitura — nunca recebem um; o armazenamento Config ao vivo/localStorage segue como rota de compatibilidade e degradação.
 - **Seam do cliente** — a metade navegador lê os brands `SessionId`/`WorkspaceId` de `@deepseek-ai/dsh-client-connection` (o pacote removido `dsh-client-runtime` não existe mais nos hosts atuais); os assentos do kit padrão do slot de cabeçalho são tipados como contrato estrutural local. Em hosts `0.1.2-rc.1` o slot de linha `sessions.row.action` não é declarado, então as linhas de sessão recorrem à sobreposição DOM e o registro do slot fica diferido.
 - **Compilação** — o esbuild emite a metade ESM do host e a metade CJS do cliente envolvida na fábrica de boot web (`window.__ModuleLoader__.load({ id, factory })`); `react` é externalizado para o React do shell, e uma barreira de pureza falha o build se uma importação de valor `@deepseek-ai/*` vazar para o bundle do navegador.
 
-**Pontos de extensão usados:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (cliente); `locale` (cliente, opcional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, e o slot de linha `sessions.row.action` quando declarado (hosts `0.1.2-rc.1` não o declaram — a sobreposição DOM cobre ali as linhas de sessão). **Efeitos visíveis ao modelo: nenhum** — plugin somente de UI: não adiciona eventos de sessão nem tokens.
+**Pontos de extensão usados:** `settings` (host); `sessions`, `workspaces`, `configForms`, `connection`, `slots` (cliente); `locale` (cliente, opcional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, e o slot de linha `sessions.row.action` quando declarado (hosts `0.1.2-rc.1` não o declaram — a sobreposição DOM cobre ali as linhas de sessão). **Efeitos visíveis ao modelo: nenhum** — plugin somente de UI: não adiciona eventos de sessão nem tokens.
 
 ## Quick start
 
@@ -93,11 +93,11 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 - **Canal git** (último `main`): `dsh plugin --profile web add "github:PerryLink/dsh-session-pin#main"` — `pnpm run build` emite a metade host (`lib/index.js`) e a metade navegador (`lib/client.js`).
 - **Canal npm** (versões publicadas): `dsh plugin --profile web add dsh-session-pin`.
 - **Canal tarball**: `pnpm pack` neste repo, depois `dsh plugin --profile web add ./dsh-session-pin-<version>.tgz`.
-- **Desinstalar**: `dsh plugin --profile web remove dsh-session-pin` (ou remova a linha do patch do perfil; a seção `session-pin` de `settings.yaml` também pode ser removida).
+- **Desinstalar**: `dsh plugin --profile web remove dsh-session-pin` (ou remova a linha do patch do perfil — a linha É o namespace do formulário de settings, então removê-la também remove os valores armazenados do formulário).
 
 ## Configuration
 
-Todas as opções são campos Schemastery `Config` (modificáveis a partir do cordis.yml). O `cordis.patch.yml` monta o bundle com os valores padrão abaixo.
+Todas as opções são campos Schemastery `Config`. Cada campo da tabela é `.volatile()`, então pode ser editado ao vivo tanto pelo `cordis.yml` quanto pela página Plugins do perfil (uma edição aceita é confirmada no plugin em execução sem remontá-lo); as listas de fixados, os mapas de cor e o estado do organizador são o mesmo tipo de campo, e é isso que torna durável o armazenamento da metade navegador. `enableLogBacking` NÃO é volatile de propósito: nunca fez parte da superfície editável e nenhuma metade navegador o lê. O `cordis.patch.yml` monta o bundle com os valores padrão abaixo.
 
 | Chave | Padrão | Significado |
 |---|---|---|
@@ -119,12 +119,12 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 | Alternador do cabeçalho da sessão | Slot de UI | O mesmo controle na linha de ações do cabeçalho, indexado por id de sessão |
 | Rodapé da barra lateral + painel de fixados | Slot de UI / sobreposição | Lista espaços e sessões fixados, agrupados por board (recolhível) com gestão de board/tags por linha e pontos de cor |
 | `/goto <palavra>` | command | Salto rápido do compositor por título/tag; a linha nunca chega ao modelo |
-| Namespace de settings `session-pin` | serviço host | Armazenamento durável por navegador de pins, cores e estado do organizador |
+| Formulário de settings `session-pin` | serviço host | O próprio Config ao vivo do plugin, durável por perfil: pins, cores e estado do organizador |
 
 ## Permissions & data
 
 - **Permissões**: o manifesto `dshWorkshop` declara `browser:local-storage`, `settings:read` e `settings:write`.
-- **Dados**: pins, cores e estado do organizador vivem por navegador no namespace de settings `session-pin`, degradando para um documento versionado de `localStorage` (documentos v1 migram) onde o proxy web não serve o namespace. Nada é enviado.
+- **Dados**: pins, cores e estado do organizador vivem no formulário de settings `session-pin` do plugin (os campos volatile Config `pinned`/`workspacePinned`/`colors`/`workspaceColors`/`boards`/`tags`/`views`), degradando para um documento versionado de `localStorage` (documentos v1 migram) onde o proxy web não serve a entrada. Nada é enviado. Com `enableLogBacking`, o Config ao vivo se torna o cache idempotente da projeção `session/pin` respaldada por log.
 - **Registro de sessão**: nenhum por padrão — este plugin não adiciona eventos de sessão nem tokens a nenhuma requisição do modelo. Com `enableLogBacking` ativo, o host dobra o evento `session/pin` de apenas-log (escrito pelo RPC `session.setPinned` do upstream) para a projeção canônica; o `PinLogAppender` aplica o portão prévio às próprias escritas, então hosts que não podem transportar o evento (`0.1.2-rc.1`) nunca recebem uma. Os efeitos visíveis ao modelo continuam nenhum.
 
 ## Security boundaries
@@ -135,7 +135,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 
 ## Known limitations
 
-- **Alcance da persistência** — onde o proxy web não serve o namespace `session-pin`, pins e cores recorrem ao `localStorage` do navegador; o registro do host vira o armazenamento durável automaticamente assim que upstream expõe o namespace. Em hosts `0.1.2-rc.1` o portão prévio desativa por completo os appends ao log (o vocabulário de eventos fail-closed rejeitaria tais logs), então a projeção degrada ali para o cache de settings.
+- **Alcance da persistência** — a residência canônica respaldada por log é opcional (`enableLogBacking`, fail-closed por padrão desligado) e seu laço de leitura ao vivo exige builds que emitam o evento `session/pin` (o RPC `session.setPinned` do upstream); em linhas de base sem ele, pins e cores recorrem ao formulário de settings `session-pin` do plugin e depois ao `localStorage` do navegador. Em hosts cujo vocabulário de eventos não conhece o tipo, o portão prévio desativa por completo os appends ao log (a rota de leitura fail-closed rejeitaria tais logs), então a projeção degrada ali para o cache de settings.
 - **Alcance da ordenação** — a posição fixada é estável somente na ordenação **Manual**; na ordenação **Updated** a promoção por atividade do núcleo volta a adiantar sessões ativas, e o `reorderOnLoad` reafirma os prefixos ao carregar.
 - **Navegadores remotos** — os RPCs de settings são apenas loopback na linha de base; navegadores remotos recorrem ao `localStorage` local.
 - **Fallback da insígnia de linha** — onde o slot de linha do upstream não está disponível, as linhas de sessão são casadas pelo texto do título; com títulos duplicados a insígnia aparece em cada linha correspondente e alterna a primeira correspondência (cosmético).
@@ -144,7 +144,7 @@ Todas as opções são campos Schemastery `Config` (modificáveis a partir do co
 ## Roadmap
 
 - Entrada «Fixar» no menu de contexto / menu da linha (precisa de um slot de menu em nível de linha no núcleo; o slot de insígnia de linha já está no upstream).
-- ~~Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.~~ **Implementado (P0):** o plugin agora inclui o schema do evento `session/pin`, o fold puro da projeção (`foldPinEvents`), a costura de append com portão prévio (`PinLogAppender`) e um leitor de projeção no host (`enableLogBacking`) que dobra os eventos `session/pin` ao vivo de volta ao cache de settings; o armazenamento settings/localStorage segue como rota de compatibilidade e degradação, e o log é canônico quando ativado.
+- ~~Residência canônica: um evento `session/pin` baseado em log + uma projeção `pin` + um RPC de escrita (upstream) — o namespace de settings então se aposenta e o plugin consome `useProjection('pin')`.~~ **Implementado (P0):** o plugin agora inclui o schema do evento `session/pin`, o fold puro da projeção (`foldPinEvents`), a costura de append com portão prévio (`PinLogAppender`) e um leitor de projeção no host (`enableLogBacking`) que dobra os eventos `session/pin` ao vivo de volta ao cache do Config ao vivo; o armazenamento Config ao vivo/localStorage segue como rota de compatibilidade e degradação, e o log é canônico quando ativado.
 - Um seletor de cor completo em popover (cores personalizadas) uma vez que a residência canônica existir; o botão de ciclo atual cobre a paleta predefinida.
 
 ## Development

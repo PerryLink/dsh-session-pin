@@ -28,7 +28,7 @@
 
 | सतह | स्थिति |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.6-alpha.2` (GitHub tag, 2026-09-18 को सत्यापित: दोहरी-रूलर typecheck + स्थैतिक सीम जाँच; ब्राउज़र दौर अनुरक्षक के पास)। npm पिन `0.1.6-alpha.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0`। |
+| Harness | DeepSeek Harness `dsh-v0.1.7-alpha.1` (GitHub tag, 2026-09-22 को सत्यापित: दोहरी-रूलर typecheck + unit/composition सूट + स्थैतिक सीम जाँच; ब्राउज़र दौर अनुरक्षक के पास)। npm पिन `0.1.7-alpha.1`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0`। |
 | Node | `>= 22` (डेवलपमेंट आधार) |
 | प्लेटफ़ॉर्म | Web GUI (दोहरा चेहरा: host + browser) |
 | मॉडल | कोई भी (केवल UI — कोई मॉडल ट्रैफ़िक नहीं, कोई सत्र घटना नहीं) |
@@ -64,14 +64,14 @@
 
 ## How it works
 
-- **Host आधा** (`src/index.ts`) — टिकाऊ `session-pin` settings namespace पंजीकृत करता है (दो पिन की गई id सूचियाँ, दो रंग मानचित्र और आयोजक state, साथ में host नीति `maxPins`/`reorderOnLoad`/`pruneStale`); कोई session event नहीं, कोई मॉडल ट्रैफ़िक नहीं।
-- **Browser आधा** (`src/client.ts`) — एक framework-मुक्त `PinStore` (settings transport, टैब-सिंक वाले versioned `localStorage` दस्तावेज़ पर degrade), एक `PinController` (दो-स्तरीय toggle / रंग चक्र / prune / reorder स्टेट मशीन) और UI जोड़ता है: पंक्ति ओवरले, वैकल्पिक पंक्ति-slot पंजीकरण, हेडर टॉगल, फुट क्रिया और pinned पैनल। क्रम `ctx.workspaces` से होकर जाता है।
+- **Host आधा** (`src/index.ts`) — `session-pin` settings फ़ॉर्म को plugin के अपने live Config के रूप में घोषित करता है: दो पिन की गई id सूचियाँ, दो रंग मानचित्र, आयोजक state और host नीति (`maxPins`/`reorderOnLoad`/`pruneStale` तथा पाँच फ़ीचर स्विच) सभी `.volatile()` फ़ील्ड हैं। `0.1.7` settings contract में किसी फ़ॉर्म का namespace उसकी profile entry का स्थानीय id होता है, इसलिए bundle patch की `id: session-pin` पंक्ति ही फ़ॉर्म का नाम है, Plugins पेज उसे संपादित करता है, और स्वीकृत संपादन चल रहे plugin पर hot-apply होते हैं; कोई session event नहीं, कोई मॉडल ट्रैफ़िक नहीं।
+- **Browser आधा** (`src/client.ts`) — एक framework-मुक्त `PinStore` (host आधे का live Config फ़ॉर्म, `ctx.configForms.get(entryId)` से पढ़ा गया, टैब-सिंक वाले versioned `localStorage` दस्तावेज़ पर degrade), एक `PinController` (दो-स्तरीय toggle / रंग चक्र / prune / reorder स्टेट मशीन) और UI जोड़ता है: पंक्ति ओवरले, वैकल्पिक पंक्ति-slot पंजीकरण, हेडर टॉगल, फुट क्रिया और pinned पैनल। क्रम `ctx.workspaces` से होकर जाता है।
 - **log-समर्थित लेखन चैनल** — बिल्ट-इन `dsh-session-pin` सेवा माउंट करने वाले builds पर, हर session टॉगल पहले `session.setPinned` RPC से commit होता है (`session/pin` इवेंट log canonical residence है) और settings store में mirror होता है; विफल या धीमा RPC सीधे settings लेखन पर degrade हो जाता है।
-- **log-समर्थित projection पठन** — `enableLogBacking` (host Config, fail-closed डिफ़ॉल्ट बंद) एक reader माउंट करता है जो लाइव `session/pin` इवेंट्स को canonical pin सेट में fold करता है और folded `pinned`/`colors` को settings namespace में mirror करता है। इवेंट schema, शुद्ध fold (`foldPinEvents`) और प्री-फ़्लाइट-गेटेड append seam (`PinLogAppender`) `src/pin-log.ts` में रहते हैं: host का **रनटाइम इवेंट शब्दकोश** गेट का एकमात्र संकेत है, **पहले append से पहले** तय होता है (alpha-लाइन का append अब `ignorable` स्टैम्प नहीं कर सकता, इसलिए मार्कर जाँच हट गई), इसलिए जो hosts इवेंट को सुरक्षित नहीं ले जा सकते — जो शब्दकोश प्रकार नहीं जानता वह पढ़ने पर fail-closed होता है — उन्हें एक भी लेखन नहीं मिलता; settings/localStorage store संगतता व degradation पथ बना रहता है।
+- **log-समर्थित projection पठन** — `enableLogBacking` (host Config, fail-closed डिफ़ॉल्ट बंद) एक reader माउंट करता है जो लाइव `session/pin` इवेंट्स को canonical pin सेट में fold करता है और folded `pinned`/`colors` को live Config में mirror करता है। इवेंट schema, शुद्ध fold (`foldPinEvents`) और प्री-फ़्लाइट-गेटेड append seam (`PinLogAppender`) `src/pin-log.ts` में रहते हैं: host का **रनटाइम इवेंट शब्दकोश** गेट का एकमात्र संकेत है, **पहले append से पहले** तय होता है (alpha-लाइन का append अब `ignorable` स्टैम्प नहीं कर सकता, इसलिए मार्कर जाँच हट गई), इसलिए जो hosts इवेंट को सुरक्षित नहीं ले जा सकते — जो शब्दकोश प्रकार नहीं जानता वह पढ़ने पर fail-closed होता है — उन्हें एक भी लेखन नहीं मिलता; live Config/localStorage store संगतता व degradation पथ बना रहता है।
 - **क्लाइंट seam** — browser आधा `SessionId`/`WorkspaceId` brands को `@deepseek-ai/dsh-client-connection` से पढ़ता है (हटाया गया `dsh-client-runtime` पैकेज वर्तमान hosts पर मौजूद नहीं है); session-हेडर slot की standard-kit सीटें स्थानीय structural contract के रूप में टाइप होती हैं। `0.1.2-rc.1` hosts पर `sessions.row.action` पंक्ति slot घोषित नहीं है, इसलिए session पंक्तियाँ DOM ओवरले पर fallback करती हैं और slot पंजीकरण टाला रहता है।
 - **बिल्ड** — esbuild host ESM आधा और वेब बूट फ़ैक्टरी (`window.__ModuleLoader__.load({ id, factory })`) में लिपटा client CJS आधा उत्सर्जित करता है; `react` shell के अपने React पर externalize होता है, और कोई `@deepseek-ai/*` मान-आयात ब्राउज़र bundle में रिसने पर purity gate बिल्ड विफल कर देता है।
 
-**उपयोग किए गए एक्सटेंशन पॉइंट:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (client); `locale` (client, वैकल्पिक); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, और upstream का `sessions.row.action` पंक्ति slot जब घोषित हो (`0.1.2-rc.1` hosts इसे घोषित नहीं करते — वहाँ session पंक्तियाँ DOM ओवरले से ढकती हैं)। **मॉडल-दृश्य प्रभाव: कोई नहीं** — केवल-UI plugin: न कोई session event जोड़ता है और न किसी मॉडल अनुरोध में token।
+**उपयोग किए गए एक्सटेंशन पॉइंट:** `settings` (host); `sessions`, `workspaces`, `configForms`, `connection`, `slots` (client); `locale` (client, वैकल्पिक); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, और upstream का `sessions.row.action` पंक्ति slot जब घोषित हो (`0.1.2-rc.1` hosts इसे घोषित नहीं करते — वहाँ session पंक्तियाँ DOM ओवरले से ढकती हैं)। **मॉडल-दृश्य प्रभाव: कोई नहीं** — केवल-UI plugin: न कोई session event जोड़ता है और न किसी मॉडल अनुरोध में token।
 
 ## Quick start
 
@@ -93,11 +93,11 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 - **git चैनल** (नवीनतम `main`): `dsh plugin --profile web add "github:PerryLink/dsh-session-pin#main"` — `pnpm run build` host आधा (`lib/index.js`) और browser आधा (`lib/client.js`) उत्सर्जित करता है।
 - **npm चैनल** (प्रकाशित संस्करण): `dsh plugin --profile web add dsh-session-pin`।
 - **tarball चैनल**: इस repo में `pnpm pack`, फिर `dsh plugin --profile web add ./dsh-session-pin-<version>.tgz`।
-- **अनइंस्टॉल**: `dsh plugin --profile web remove dsh-session-pin` (या profile patch से पंक्ति हटाएँ; `settings.yaml` का `session-pin` अनुभाग भी हटाया जा सकता है)।
+- **अनइंस्टॉल**: `dsh plugin --profile web remove dsh-session-pin` (या profile patch से पंक्ति हटाएँ — वही पंक्ति settings फ़ॉर्म का namespace है, इसलिए हटाने पर संग्रहीत फ़ॉर्म मान भी हट जाते हैं)।
 
 ## Configuration
 
-सभी ट्यूनेबल Schemastery `Config` फ़ील्ड हैं (cordis.yml से बदले जा सकते हैं)। `cordis.patch.yml` नीचे दिए डिफ़ॉल्ट के साथ bundle माउंट करता है।
+सभी ट्यूनेबल Schemastery `Config` फ़ील्ड हैं। तालिका का हर फ़ील्ड `.volatile()` है, इसलिए इसे `cordis.yml` से ही नहीं, profile के Plugins पेज से भी लाइव संपादित किया जा सकता है (स्वीकृत संपादन plugin को दोबारा माउंट किए बिना उसी में commit हो जाता है); pin सूचियाँ, रंग मानचित्र और आयोजक state इसी प्रकार के फ़ील्ड हैं, और यही browser आधे के store को टिकाऊ बनाता है। `enableLogBacking` जानबूझकर volatile **नहीं** है: यह कभी संपादन-योग्य सतह का हिस्सा नहीं था और कोई browser आधा इसे नहीं पढ़ता। `cordis.patch.yml` नीचे दिए डिफ़ॉल्ट के साथ bundle माउंट करता है।
 
 | कुंजी | डिफ़ॉल्ट | अर्थ |
 |---|---|---|
@@ -119,12 +119,12 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 | session हेडर टॉगल | UI slot | हेडर की क्रिया-पंक्ति में वही नियंत्रण, session id से जोड़ा गया |
 | sidebar फुट + pinned पैनल | UI slot / ओवरले | पिन किए workspace और session board के अनुसार समूहित (संकुचित), प्रति पंक्ति board/tag प्रबंधन और रंग-बिंदुओं के साथ सूचीबद्ध करता है |
 | `/goto <कीवर्ड>` | command | शीर्षक/टैग से कम्पोज़र त्वरित-छलांग; पंक्ति मॉडल तक कभी नहीं पहुँचती |
-| `session-pin` settings namespace | host सेवा | pins, रंग और आयोजक state का हर-ब्राउज़र टिकाऊ भंडार |
+| `session-pin` settings फ़ॉर्म | host सेवा | plugin का अपना live Config, प्रति profile टिकाऊ: pins, रंग और आयोजक state |
 
 ## Permissions & data
 
 - **अनुमतियाँ**: `dshWorkshop` manifest `browser:local-storage`, `settings:read` और `settings:write` घोषित करता है।
-- **डेटा**: pins, रंग और आयोजक state हर ब्राउज़र में `session-pin` settings namespace में रहते हैं; जहाँ web proxy namespace नहीं परोसता वहाँ versioned `localStorage` दस्तावेज़ (v1 दस्तावेज़ migrate होते हैं) पर degrade हो जाते हैं। कुछ भी अपलोड नहीं होता।
+- **डेटा**: pins, रंग और आयोजक state plugin के `session-pin` settings फ़ॉर्म में रहते हैं (यानी `pinned`/`workspacePinned`/`colors`/`workspaceColors`/`boards`/`tags`/`views` volatile Config फ़ील्ड); जहाँ web proxy वह entry नहीं परोसता वहाँ versioned `localStorage` दस्तावेज़ (v1 दस्तावेज़ migrate होते हैं) पर degrade हो जाते हैं। कुछ भी अपलोड नहीं होता। `enableLogBacking` के साथ live Config, log-समर्थित `session/pin` projection का idempotent cache बन जाता है।
 - **सत्र लॉग**: डिफ़ॉल्ट रूप से कोई नहीं — यह plugin न कोई session event जोड़ता है और न किसी मॉडल अनुरोध में token। `enableLogBacking` चालू होने पर, host केवल-log `session/pin` इवेंट (upstream `session.setPinned` RPC द्वारा लिखित) को canonical pin projection में fold करता है; `PinLogAppender` अपनी लेखन को प्री-फ़्लाइट गेट करता है, इसलिए जो hosts इवेंट नहीं ले जा सकते (`0.1.2-rc.1`) उन्हें एक भी लेखन नहीं मिलता। मॉडल-दृश्य प्रभाव फिर भी कोई नहीं।
 
 ## Security boundaries
@@ -135,7 +135,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 
 ## Known limitations
 
-- **स्थायित्व का दायरा** — जहाँ web proxy `session-pin` namespace नहीं परोसता, वहाँ pins और रंग ब्राउज़र-स्थानीय `localStorage` पर fallback करते हैं; upstream द्वारा namespace एक्सपोज़ करते ही host पंजीकरण स्वचालित रूप से टिकाऊ भंडार बन जाता है। `0.1.2-rc.1` hosts पर प्री-फ़्लाइट गेट log appends को पूरी तरह बंद कर देता है (fail-closed इवेंट शब्दकोश ऐसे logs को अस्वीकार कर देता), इसलिए projection वहाँ settings cache पर degrade हो जाता है।
+- **स्थायित्व का दायरा** — log-समर्थित canonical residence वैकल्पिक है (`enableLogBacking`, fail-closed डिफ़ॉल्ट बंद) और उसका लाइव पठन लूप ऐसे builds चाहता है जो `session/pin` इवेंट उत्सर्जित करें (upstream `session.setPinned` RPC); उसके बिना आधाररेखाओं पर pins और रंग plugin के `session-pin` settings फ़ॉर्म पर, और फिर ब्राउज़र-स्थानीय `localStorage` पर fallback करते हैं। जिन hosts का इवेंट शब्दकोश प्रकार नहीं जानता, वहाँ प्री-फ़्लाइट गेट log appends को पूरी तरह बंद कर देता है (fail-closed पठन पथ ऐसे logs को अस्वीकार कर देता), इसलिए projection वहाँ settings cache पर degrade हो जाता है।
 - **क्रम का दायरा** — पिन की स्थिति केवल **Manual** क्रम में स्थिर है; **Updated** क्रम में कोर की गतिविधि-प्रमोशन सक्रिय sessions को फिर से आगे कर देती है, और `reorderOnLoad` लोड पर उपसर्ग फिर से लागू करता है।
 - **दूरस्थ ब्राउज़र** — baseline पर settings RPC केवल loopback हैं; दूरस्थ ब्राउज़र ब्राउज़र-स्थानीय `localStorage` पर fallback करते हैं।
 - **पंक्ति बैज fallback** — जहाँ upstream का पंक्ति slot उपलब्ध नहीं है, session पंक्तियाँ शीर्षक पाठ से मेल खाती हैं; डुप्लिकेट शीर्षकों पर बैज हर मेल खाती पंक्ति पर दिखता है और पहले मेल को टॉगल करता है (कॉस्मेटिक)।
@@ -144,7 +144,7 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 ## Roadmap
 
 - राइट-क्लिक / पंक्ति-मेनू में «पिन» प्रविष्टि (कोर के पंक्ति-स्तरीय मेनू slot की आवश्यकता; पंक्ति बैज slot अब upstream में है)।
-- ~~विहित स्थान: एक log-समर्थित `session/pin` event + `pin` projection + write RPC (upstream) — तब settings namespace टिकाऊ भंडार से हट जाता है और plugin `useProjection('pin')` का उपभोग करता है।~~ **लागू (P0):** plugin में अब `session/pin` event schema, शुद्ध projection fold (`foldPinEvents`), प्री-फ़्लाइट-गेटेड append seam (`PinLogAppender`) और एक host projection reader (`enableLogBacking`) है जो लाइव `session/pin` इवेंट्स को settings cache में वापस fold करता है; settings/localStorage संगतता व degradation पथ बने रहते हैं, और सक्षम होने पर log canonical है।
+- ~~विहित स्थान: एक log-समर्थित `session/pin` event + `pin` projection + write RPC (upstream) — तब settings namespace टिकाऊ भंडार से हट जाता है और plugin `useProjection('pin')` का उपभोग करता है।~~ **लागू (P0):** plugin में अब `session/pin` event schema, शुद्ध projection fold (`foldPinEvents`), प्री-फ़्लाइट-गेटेड append seam (`PinLogAppender`) और एक host projection reader (`enableLogBacking`) है जो लाइव `session/pin` इवेंट्स को live Config cache में वापस fold करता है; live Config/localStorage संगतता व degradation पथ बने रहते हैं, और सक्षम होने पर log canonical है।
 - विहित स्थान मौजूद होने पर एक पूर्ण रंग-चयनकर्ता popover (मनपसंद रंग); आज का चक्र बटन preset palette को कवर करता है।
 
 ## Development

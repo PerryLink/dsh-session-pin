@@ -174,10 +174,10 @@ function fakeSessions(): Record<string, unknown> {
   }
 }
 
-/** Host-backed `session-pin` settings scope with the shipped defaults. */
-function fakeSettingsScope(): Record<string, unknown> {
+/** Host-backed `session-pin` settings form (the client `configForms` service) with the shipped defaults. */
+function fakeConfigForms(): Record<string, unknown> {
   return {
-    bind: () => ({
+    get: () => ({
       getSnapshot: () => ({
         mode: 'host',
         status: 'ready',
@@ -192,7 +192,7 @@ function fakeSettingsScope(): Record<string, unknown> {
         },
       }),
       subscribe: () => (): void => {},
-      set: async (): Promise<void> => {},
+      set: async (): Promise<boolean> => true,
     }),
   }
 }
@@ -222,9 +222,8 @@ describe('session-pin client reorder loop (issue #4)', () => {
         ctx.provide('slots', fakeSlots())
         ctx.provide('sessions', fakeSessions())
         ctx.provide('workspaces', host.service())
-        ctx.provide('settingsScope', fakeSettingsScope())
+        ctx.provide('configForms', fakeConfigForms())
         ctx.provide('connection', {})
-        ctx.provide('remote', {})
       },
     })
     await runtime.await()

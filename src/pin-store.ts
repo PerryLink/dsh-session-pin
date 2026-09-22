@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * PinStore: the persistence adapter between the PinController and the two
- * durable stores — the Host-backed `session-pin` settings namespace (host
- * mode: settings RPCs round-trip to the Host document) and browser-local
+ * durable stores — the host half's live `session-pin` Config form (host mode:
+ * the settings write queue round-trips to the profile patch) and browser-local
  * storage (local mode: memory/unavailable settings — remote browsers and
- * builds whose web proxy does not serve the namespace — degrade to
- * per-browser persistence). Mode switches are re-evaluated on every read, so
- * a settings transport that (re-)connects adopts the Host store live.
+ * builds whose web proxy does not serve the entry — degrade to per-browser
+ * persistence). Mode switches are re-evaluated on every read, so a settings
+ * transport that (re-)connects adopts the Host store live.
  *
  * The stored document carries both pin levels (sessions and workspaces) and
  * both color maps. Cross-tab consistency in local mode rides the window
@@ -20,7 +20,7 @@ import { normalizeBoards, normalizeTags, normalizeViews, type BoardRegistry, typ
 /** Browser-local storage key (remote-browser fallback). */
 export const STORAGE_KEY = 'dsh.session-pin.pinned'
 
-/** Pin-section fields of the `session-pin` settings namespace. */
+/** Pin-section fields of the host half's `session-pin` Config form. */
 export interface PinSection {
   pinned?: string[]
   workspacePinned?: string[]
@@ -75,7 +75,14 @@ export interface PinStoreSnapshot {
   enableGoto: boolean
 }
 
-/** The settings-scope slice the store reads and writes through. */
+/**
+ * The settings-form slice the store reads and writes through. Structurally
+ * this is the client settings service's `ConfigForm<PinSection>`
+ * (`ctx.configForms.get(entryId)`): same snapshot shape, same subscription,
+ * same per-field write queue — `set` answers with the Host's acceptance, which
+ * the store deliberately does not consume (a refused write reloads the form
+ * itself and the next snapshot read reflects the truth).
+ */
 export interface PinScope {
   getSnapshot(): {
     mode: 'host' | 'memory'
@@ -83,7 +90,7 @@ export interface PinScope {
     value?: PinSection
   }
   subscribe(listener: () => void): () => void
-  set(field: string, value: unknown): Promise<void>
+  set(field: string, value: unknown): Promise<unknown>
 }
 
 /** Synchronous browser-local key/value storage (localStorage face). */
@@ -199,8 +206,8 @@ export function createPinStore(scope: PinScope, storage: StorageLike, storageEve
         }
         return
       }
-      // Host mode: the settings transport carries each field separately.
-      const writes: Array<Promise<void>> = []
+      // Host mode: the settings write queue carries each field separately.
+      const writes: Array<Promise<unknown>> = []
       for (const [field, value] of Object.entries(section)) writes.push(scope.set(field, value))
       return Promise.all(writes).then(() => undefined)
     },

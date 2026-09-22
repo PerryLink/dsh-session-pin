@@ -31,7 +31,7 @@
 
 | Surface | Status |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.6-alpha.2` (GitHub tag; verified 2026-09-18: dual-ruler typecheck + static seam checks; browser pass pending maintainer). npm dependency line `0.1.6-alpha.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.1.7-alpha.1` (GitHub tag; verified 2026-09-22: dual-ruler typecheck + unit/composition suites + static seam checks; browser pass pending maintainer). npm dependency line `0.1.7-alpha.1`, peers `>=0.1.2-rc.1 <0.2.0 \|\| >=0.1.5-alpha.1 <0.2.0 \|\| >=0.1.6-0 <0.2.0 \|\| >=0.1.7-0 <0.2.0`. |
 | Node | `>= 22` (development floor) |
 | Platforms | Web GUI (dual-face: host + browser) |
 | Model | Any (UI-only — no model traffic, no session events) |
@@ -67,14 +67,14 @@ Four browser-local capabilities organize multi-session work on top of pinning. A
 
 ## How it works
 
-- **Host half** (`src/index.ts`) — registers the durable `session-pin` settings namespace (the two pinned id lists, the two color maps, and the organizer state, plus the host policy `maxPins`/`reorderOnLoad`/`pruneStale`); no session events, no model traffic.
-- **Browser half** (`src/client.ts`) — assembles a framework-free `PinStore` (settings transport, degrading to a versioned `localStorage` document with cross-tab sync), a `PinController` (two-level toggle / color cycle / prune / reorder state machine), and the UI: the row overlay, the optional row-slot registration, the header toggle, the sidebar foot action, and the pinned panel. Ordering goes through `ctx.workspaces`.
+- **Host half** (`src/index.ts`) — declares the `session-pin` settings form as the plugin's own live Config: the two pinned id lists, the two color maps, the organizer state, and the host policy (`maxPins`/`reorderOnLoad`/`pruneStale` plus the five feature switches) are all `.volatile()` fields. On the `0.1.7` settings contract a form's namespace is the local id of its profile entry, so the bundle patch's `id: session-pin` row names the form, the Plugins page edits it, and accepted edits are hot-applied to the running plugin; no session events, no model traffic.
+- **Browser half** (`src/client.ts`) — assembles a framework-free `PinStore` (the host half's live Config form read through `ctx.configForms.get(entryId)`, degrading to a versioned `localStorage` document with cross-tab sync), a `PinController` (two-level toggle / color cycle / prune / reorder state machine), and the UI: the row overlay, the optional row-slot registration, the header toggle, the sidebar foot action, and the pinned panel. Ordering goes through `ctx.workspaces`.
 - **Log-backed write channel** — on builds mounting the built-in `dsh-session-pin` service, every session toggle commits through the `session.setPinned` RPC first (the `session/pin` event log is the canonical residence) and mirrors the commit into the settings store; a failed or slow RPC degrades to a direct settings write.
-- **Log-backed projection read** — `enableLogBacking` (host Config, fail-closed default off) mounts a projection reader that folds live `session/pin` events into the canonical pin set and mirrors the folded `pinned`/`colors` into the settings namespace, which becomes the idempotent cache for the log-backed state. The event schema, the pure fold (`foldPinEvents`), and the pre-flight-gated append seam (`PinLogAppender`) live in `src/pin-log.ts`: the host's runtime event vocabulary alone gates the write BEFORE the first append (the alpha-line append can no longer stamp the `ignorable` marker, so the old marker probe is gone), so hosts that cannot safely carry the event — a vocabulary that does not know the type fails closed on read — never receive one; the settings/localStorage store remains the compat + degradation path.
+- **Log-backed projection read** — `enableLogBacking` (host Config, fail-closed default off) mounts a projection reader that folds live `session/pin` events into the canonical pin set and mirrors the folded `pinned`/`colors` into the live Config, which becomes the idempotent cache for the log-backed state. The event schema, the pure fold (`foldPinEvents`), and the pre-flight-gated append seam (`PinLogAppender`) live in `src/pin-log.ts`: the host's runtime event vocabulary alone gates the write BEFORE the first append (the alpha-line append can no longer stamp the `ignorable` marker, so the old marker probe is gone), so hosts that cannot safely carry the event — a vocabulary that does not know the type fails closed on read — never receive one; the live Config/localStorage store remains the compat + degradation path.
 - **Client seam** — the browser half reads `SessionId`/`WorkspaceId` brands from `@deepseek-ai/dsh-client-connection` (the removed `dsh-client-runtime` package no longer exists on current hosts); the session-header slot's standard-kit seats are typed as a local structural contract. On `0.1.2-rc.1` hosts the `sessions.row.action` row slot is not declared, so session rows fall back to the DOM overlay and the row-slot registration stays deferred.
 - **Build** — esbuild emits the host ESM half and the client CJS half wrapped in the web boot factory (`window.__ModuleLoader__.load({ id, factory })`); `react` is externalized onto the shell's own React, and a purity gate fails the build if any `@deepseek-ai/*` value import leaks into the browser bundle.
 
-**Extension points used:** `settings` (host); `sessions`, `workspaces`, `settingsScope`, `connection`, `remote`, `slots` (client); `locale` (client, optional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, and the upstream `sessions.row.action` row slot when declared (`0.1.2-rc.1` hosts do not declare it — the DOM overlay covers session rows there). **Model-visible effects: none** — this is a UI-only plugin: it adds no session events and no tokens to any model request.
+**Extension points used:** `settings` (host); `sessions`, `workspaces`, `configForms`, `connection`, `slots` (client); `locale` (client, optional); `conversation.session.header.actions`, `sidebar.footer.action`, `shell.overlay`, and the upstream `sessions.row.action` row slot when declared (`0.1.2-rc.1` hosts do not declare it — the DOM overlay covers session rows there). **Model-visible effects: none** — this is a UI-only plugin: it adds no session events and no tokens to any model request.
 
 ## Quick start
 
@@ -96,11 +96,11 @@ dsh --profile web --dump-config | grep -A3 'id: session-pin'
 - **git channel** (latest `main`): `dsh plugin --profile web add "github:PerryLink/dsh-session-pin#main"` — `pnpm run build` emits the host half (`lib/index.js`) and the browser half (`lib/client.js`).
 - **npm channel** (published releases): `dsh plugin --profile web add dsh-session-pin`.
 - **tarball channel**: `pnpm pack` in this repo, then `dsh plugin --profile web add ./dsh-session-pin-<version>.tgz`.
-- **uninstall**: `dsh plugin --profile web remove dsh-session-pin` (or remove the row from the profile patch; the `session-pin` section of `settings.yaml` can also be removed).
+- **uninstall**: `dsh plugin --profile web remove dsh-session-pin` (or remove the row from the profile patch — the row IS the settings form namespace, so removing it also removes the stored form values).
 
 ## Configuration
 
-All tunables are Schemastery `Config` fields (changeable from cordis.yml). `cordis.patch.yml` mounts the bundle with the defaults below.
+All tunables are Schemastery `Config` fields. Every field below is `.volatile()`, so it is editable live from the profile's Plugins page as well as from `cordis.yml` (an accepted edit is committed into the running plugin without a remount); pin lists, color maps, and organizer state are the same kind of field, which is what makes the browser half's store durable. `enableLogBacking` is deliberately NOT volatile: it was never part of the editable surface and no browser half reads it. `cordis.patch.yml` mounts the bundle with the defaults below.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -122,12 +122,12 @@ All tunables are Schemastery `Config` fields (changeable from cordis.yml). `cord
 | Session header toggle | UI slot | The same pin control in the header action row, keyed by session id |
 | Sidebar foot + pinned panel | UI slot / overlay | Lists pinned workspaces and sessions, grouped by board (collapsible) with per-row board/tag manage and color dots |
 | `/goto <keyword>` | command | Composer quick-jump by title/tag; the line never reaches the model |
-| `session-pin` settings namespace | host service | Durable per-browser store for pins, colors, and organizer state |
+| `session-pin` settings form | host service | The plugin's own live Config, durable per profile: pins, colors, and organizer state |
 
 ## Permissions & data
 
 - **Permissions**: the `dshWorkshop` manifest declares `browser:local-storage`, `settings:read`, and `settings:write`.
-- **Data**: pins, colors, and organizer state live per browser in the `session-pin` settings namespace, degrading to a versioned `localStorage` document (v1 documents migrate) where the web proxy does not serve the namespace. Nothing is uploaded. With `enableLogBacking`, the settings namespace becomes the idempotent cache for the log-backed `session/pin` projection.
+- **Data**: pins, colors, and organizer state live in the plugin's `session-pin` settings form (the `pinned`/`workspacePinned`/`colors`/`workspaceColors`/`boards`/`tags`/`views` volatile Config fields), degrading to a versioned `localStorage` document (v1 documents migrate) where the web proxy does not serve the entry. Nothing is uploaded. With `enableLogBacking`, the live Config becomes the idempotent cache for the log-backed `session/pin` projection.
 - **Session log**: none by default — this plugin adds no session events and no tokens to any model request. When `enableLogBacking` is on, the host folds the log-only `session/pin` event (written by the upstream `session.setPinned` RPC) into the canonical pin projection; `PinLogAppender` pre-flight-gates its own writes on the runtime event vocabulary, so hosts that cannot carry the event never receive one. Model-visible effects remain none.
 
 ## Security boundaries
@@ -138,7 +138,7 @@ All tunables are Schemastery `Config` fields (changeable from cordis.yml). `cord
 
 ## Known limitations
 
-- **Persistence scope** — the log-backed canonical residence is opt-in (`enableLogBacking`, fail-closed default off) and its live read loop requires builds that emit the `session/pin` event (the upstream `session.setPinned` RPC); on baselines without it, pins and colors fall back to the `session-pin` settings namespace, then to browser-local `localStorage`. On hosts whose event vocabulary does not know the type, the pre-flight gate disables log appends entirely (the fail-closed read path would reject such logs), so the projection degrades to the settings cache there.
+- **Persistence scope** — the log-backed canonical residence is opt-in (`enableLogBacking`, fail-closed default off) and its live read loop requires builds that emit the `session/pin` event (the upstream `session.setPinned` RPC); on baselines without it, pins and colors fall back to the plugin's `session-pin` settings form, then to browser-local `localStorage`. On hosts whose event vocabulary does not know the type, the pre-flight gate disables log appends entirely (the fail-closed read path would reject such logs), so the projection degrades to the settings cache there.
 - **Ordering scope** — the pinned position is stable only under **Manual** order; under **Updated** order the core's activity promotion re-fronts active sessions, and `reorderOnLoad` re-asserts the prefixes on load.
 - **Remote browsers** — settings RPCs are loopback-only on the baseline; remote browsers fall back to browser-local `localStorage`.
 - **Row badge fallback** — where the upstream row slot is unavailable, session rows are matched by title text; with duplicate titles the badge shows on every matching row and toggles the first match (cosmetic).
@@ -146,7 +146,7 @@ All tunables are Schemastery `Config` fields (changeable from cordis.yml). `cord
 
 ## Roadmap
 
-- ~~Canonical residence: a log-backed `session/pin` event + `pin` projection + write RPC (upstream) — the settings namespace then retires as the durable store and the plugin consumes `useProjection('pin')`.~~ **Landed (P0):** the plugin ships the `session/pin` event schema, the pure projection fold (`foldPinEvents`), the pre-flight-gated append seam (`PinLogAppender`), and a host projection reader (`enableLogBacking`) that folds live `session/pin` events back into the settings cache. The settings/localStorage store remains the compat + degradation path; the log is canonical when enabled.
+- ~~Canonical residence: a log-backed `session/pin` event + `pin` projection + write RPC (upstream) — the settings namespace then retires as the durable store and the plugin consumes `useProjection('pin')`.~~ **Landed (P0):** the plugin ships the `session/pin` event schema, the pure projection fold (`foldPinEvents`), the pre-flight-gated append seam (`PinLogAppender`), and a host projection reader (`enableLogBacking`) that folds live `session/pin` events back into the live Config cache. The live Config/localStorage store remains the compat + degradation path; the log is canonical when enabled.
 - Self-build write fallback: wire `PinLogAppender` to append `session/pin` events on builds without the upstream `session.setPinned` RPC, so no-upstream baselines also log canonically.
 - Consume the upstream `pin` projection (`useProjection('pin')`) on the client once `@deepseek-ai/dsh-session-pin` ships in the npm baseline; today the host mirror covers the read path on master builds.
 - Right-click / row-menu "Pin" entry (needs a core row-level menu slot; the row badge slot is upstream now).

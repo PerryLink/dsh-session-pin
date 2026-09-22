@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Browser half of the dual-face session-pin plugin. Assembles the pin store
- * (Host-backed `session-pin` settings namespace, degrading to browser-local
+ * (the host half's live `session-pin` Config form, degrading to browser-local
  * storage when the transport cannot carry it), the PinController (two pin
  * levels — sessions and workspaces — plus per-level row colors), the row
  * overlay and row-slot controls, the session-header toggle, the sidebar foot
@@ -41,17 +41,25 @@ import { mountRowSlot, ROW_SLOT_KEY, type RowSlotRegistryLike } from './row-slot
 
 export const name = 'session-pin'
 
-// The settings-scope binder resolves `connection` and `remote` on the caller's
-// context at bind time; this plugin names both so the bound scope's transport
-// and invalidation subscription live on this fiber. `slots` is a hard
-// dependency (row badges and slot contributions register on apply): naming it
-// puts the service on this fiber's own store — a bare `ctx.slots` read would
-// otherwise walk the ancestor fiber chain only and never reach the runtime
-// fiber that provides the registry.
-export const inject = ['sessions', 'workspaces', 'settingsScope', 'connection', 'remote', 'slots']
+// `configForms` is the settings domain's client service (`SettingsForms`'s
+// browser counterpart): `get(entryId)` returns the live form for one profile
+// entry — values, subscription, and the write queue — so this plugin needs no
+// `remote` injection of its own (the provider owns that transport).
+// `connection` is read directly for the optional `session.setPinned` channel.
+// `slots` is a hard dependency (row badges and slot contributions register on
+// apply): naming it puts the service on this fiber's own store — a bare
+// `ctx.slots` read would otherwise walk the ancestor fiber chain only and
+// never reach the runtime fiber that provides the registry.
+export const inject = ['sessions', 'workspaces', 'configForms', 'connection', 'slots']
 
-/** Settings namespace registered by the host half. */
-const NAMESPACE = 'session-pin'
+/**
+ * Profile entry id of the host half's settings form. `0.1.7` names a settings
+ * form by the local id of its profile entry, and `cordis.patch.yml` mounts
+ * this plugin as `session-pin`; the host half exports the same string as
+ * `SETTINGS_ENTRY_ID`. Kept as a literal here because the client bundle must
+ * not value-import the host half (that would inline schemastery).
+ */
+const SETTINGS_ENTRY_ID = 'session-pin'
 /** Plugin identity for style-tag bookkeeping. */
 const PLUGIN_ID = 'dsh-session-pin'
 
@@ -175,7 +183,7 @@ interface ClientCtxFace {
     startSession?: (workspaceId?: WorkspaceId) => void
   }
   slots: unknown
-  settingsScope: { bind<T>(opts: { namespace: string }): T }
+  configForms: { get<T>(entryId: string): T }
   logger: { warn(msg: string): void }
   on(name: string, cb: () => void): () => void
   inject(keys: string[], cb: (scope: { effect: (cb: () => unknown, label?: string) => unknown; locale: { register(ns: string, dicts: unknown): unknown; bind(ns: string): (key: string) => string } }) => void): void
@@ -185,7 +193,7 @@ interface ClientCtxFace {
   // unload/reload (entry lifecycle) — self-removal here would also delete
   // other plugins' style nodes in the same flush window (N8).
   injectStyles()
-  const scope = c.settingsScope.bind<PinScope>({ namespace: NAMESPACE })
+  const scope = c.configForms.get<PinScope>(SETTINGS_ENTRY_ID)
   const store = createPinStore(scope, guardedStorage(), window as unknown as StorageEventsLike)
 
   // Narrow the runtime sessions list into the framework-free face (the one
