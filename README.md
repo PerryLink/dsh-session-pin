@@ -40,7 +40,7 @@
 
 | Surface | Status |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.7-rc.1` (GitHub tag; verified 2026-09-22: dual-ruler typecheck + unit/composition suites + static seam checks; browser pass pending maintainer). npm dependency line `0.1.7-rc.1`, peers `>=0.1.2-rc.1 <0.2.0 \|\| >=0.1.5-alpha.1 <0.2.0 \|\| >=0.1.6-0 <0.2.0 \|\| >=0.1.7-0 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.1.7-rc.2` (GitHub tag; verified 2026-09-22: dual-ruler typecheck + unit/composition suites + static seam checks; browser pass pending maintainer). npm dependency line `0.1.7-rc.2`, peers `>=0.1.2-rc.1 <0.2.0 \|\| >=0.1.5-alpha.1 <0.2.0 \|\| >=0.1.6-0 <0.2.0 \|\| >=0.1.7-0 <0.2.0`. |
 | Node | `>= 22` (development floor) |
 | Platforms | Web GUI (dual-face: host + browser) |
 | Model | Any (UI-only — no model traffic, no session events) |

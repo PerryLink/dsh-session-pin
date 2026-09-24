@@ -26,7 +26,7 @@ Standalone DeepSeek Harness plugin repository (`dsh-session-pin`). Development f
 
 `pnpm run typecheck && pnpm test && pnpm run test:coverage && pnpm run lint && pnpm run check:readmes && pnpm run build && pnpm run verify:self-contained && pnpm run verify:artifacts && pnpm pack`
 
-- `typecheck` resolves `@deepseek-ai/*` from the installed devDependencies (the `0.1.7-rc.1` line — the tag the plugin is verified against — plus `cordis ^4.0.3` and `schemastery ^3.18.3`, the first releases that export `Volatile`/`isVolatile` and `Schema.prototype.volatile`; this repo has no tsconfig paths). Host and client peers all carry the family baseline plus the `>=0.1.7-0 <0.2.0` clause.
+- `typecheck` resolves `@deepseek-ai/*` from the installed devDependencies (the `0.1.7-rc.2` line — the tag the plugin is verified against — plus `cordis ^4.0.3` and `schemastery ^3.18.3`, the first releases that export `Volatile`/`isVolatile` and `Schema.prototype.volatile`; this repo has no tsconfig paths). Host and client peers all carry the family baseline plus the `>=0.1.7-0 <0.2.0` clause.
 - `verify:artifacts` also proves the built host ESM face imports under plain Node and that the client bundle carries the ModuleLoader handshake.
 - The composition suite (`tests/composition.test.ts`) runs the BUILT entry through the real Loader in mkdtemp temp directories only.
 
