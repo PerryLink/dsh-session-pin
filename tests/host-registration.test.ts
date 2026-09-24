@@ -6,7 +6,7 @@
  * is gone: a plugin's durable settings surface is now its OWN live Config. A
  * form namespace is the local id of a profile entry, and the fields a form
  * projects, edits, and hot-applies are exactly the `.volatile()` ones. These
- * tests pin that surface 鈥?the entry id the browser half binds, the volatile
+ * tests pin that surface — the entry id the browser half binds, the volatile
  * field set, the live defaults, and the settings writes this half performs
  * (the presentation claim and the log-backed mirror).
  *
@@ -246,7 +246,8 @@ describe('session-pin host half on the 0.1.7 settings contract', () => {
 
   it('merges a folded pin over the live pin list already held', async () => {
     // The mirror reads its cache from the plugin's own live references, so a
-    // composition value is the merge base 鈥?exactly the old scope.get() read 鈥?    // and the pin/unpin/color semantics are unchanged. (The real host
+    // composition value is the merge base — exactly the old scope.get() read — 
+    // and the pin/unpin/color semantics are unchanged. (The real host
     // hot-applies an accepted write back into the same reference; the stand-in
     // records only, so the second event folds over the composition value
     // again, which is the case asserted here.)

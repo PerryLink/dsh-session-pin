@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- `tests/host-registration.test.ts` carried three mojibake em dashes: one in the header comment and two inside the merge-base comment of the folded-pin test, where the pair also swallowed the line break and the following indentation and left two comments fused into one 150-column line. All three dashes are restored and the swallowed break is put back, so the file is free of encoding artifacts and no longer contains an over-long fused comment.
+
 ## [0.7.14] - 2026-09-23
 
 ### Changed
