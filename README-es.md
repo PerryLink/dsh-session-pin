@@ -29,7 +29,7 @@
 
 | Superficie | Estado |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.1.7-alpha.2` (tag de GitHub; verificado el 2026-09-22: typecheck de doble regla + suites unitarias/de composición + comprobaciones estáticas de costuras; la ronda de navegador queda a cargo del mantenedor). Pin npm `0.1.7-alpha.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.1.7-rc.1` (tag de GitHub; verificado el 2026-09-22: typecheck de doble regla + suites unitarias/de composición + comprobaciones estáticas de costuras; la ronda de navegador queda a cargo del mantenedor). Pin npm `0.1.7-rc.1`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0`. |
 | Node | `>= 22` (base mínima de desarrollo) |
 | Plataformas | Web GUI (doble cara: host + navegador) |
 | Modelo | Cualquiera (solo UI — sin tráfico de modelo, sin eventos de sesión) |

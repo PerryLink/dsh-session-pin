@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. The format foll
 
 - `tests/host-registration.test.ts` carried three mojibake em dashes: one in the header comment and two inside the merge-base comment of the folded-pin test, where the pair also swallowed the line break and the following indentation and left two comments fused into one 150-column line. All three dashes are restored and the swallowed break is put back, so the file is free of encoding artifacts and no longer contains an over-long fused comment.
 
+### Changed
+
+- The host pins move to `0.1.7-rc.1`: every `@deepseek-ai/dsh-*` dev/test pin moves from `0.1.7-alpha.2`, and `dshWorkshop.compatibility.dshVersions` records `0.1.7-rc.1` (appended — the timeline stays append-only). Re-verified against that host line. The declared peer ranges and `engines.dsh` are deliberately **unchanged**: `0.1.7-rc.1` already satisfies their `>=0.1.7-0 <0.2.0` clause, and the family keeps peer ranges wider than the verified line rather than narrowing them to it.
+
 ## [0.7.14] - 2026-09-23
 
 ### Changed
