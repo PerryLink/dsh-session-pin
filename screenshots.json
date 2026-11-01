@@ -1,0 +1,14 @@
+[
+  {
+    "path": "docs/assets/dsh-session-pin-hero.png",
+    "kind": "hero",
+    "alt": "dsh-session-pin documentation card",
+    "caption": "Generated documentation baseline; replace with a real run."
+  },
+  {
+    "path": "docs/assets/dsh-session-pin-demo.gif",
+    "kind": "demo",
+    "alt": "dsh-session-pin install preview",
+    "caption": "Generated install preview; not a test result."
+  }
+]

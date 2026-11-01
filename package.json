@@ -34,8 +34,14 @@
       "settings:write"
     ],
     "compatibility": {
-      "dshVersions": ["0.1.2-rc.1","0.1.5-rc.2","0.1.7-alpha.2","0.1.7-rc.1", "0.1.7-rc.2",
-        "0.2.1-alpha.1"]
+      "dshVersions": [
+        "0.1.2-rc.1",
+        "0.1.5-rc.2",
+        "0.1.7-alpha.2",
+        "0.1.7-rc.1",
+        "0.1.7-rc.2",
+        "0.2.1-alpha.1"
+      ]
     },
     "capability": {
       "id": "session-pin-toggle",
@@ -75,7 +81,12 @@
     "README-hi.md",
     "CHANGELOG.md",
     "SECURITY.md",
-    "LICENSE"
+    "LICENSE",
+    "PRIVACY.md",
+    "icon.svg",
+    "screenshots.json",
+    "docs/assets/dsh-session-pin-demo.gif",
+    "docs/assets/dsh-session-pin-hero.png"
   ],
   "dsh": {
     "manifestVersion": 1,
@@ -168,5 +179,6 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/sponsors/PerryLink"
-  }
+  },
+  "icon": "icon.svg"
 }
