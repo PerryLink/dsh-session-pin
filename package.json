@@ -86,7 +86,9 @@
     "icon.svg",
     "screenshots.json",
     "docs/assets/dsh-session-pin-demo.gif",
-    "docs/assets/dsh-session-pin-hero.png"
+    "docs/assets/dsh-session-pin-hero.png",
+    "CONTRIBUTING.md",
+    "docs/assets/dsh-session-pin-flow.svg"
   ],
   "dsh": {
     "manifestVersion": 1,
