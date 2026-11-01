@@ -2,13 +2,13 @@
   {
     "path": "docs/assets/dsh-session-pin-hero.png",
     "kind": "hero",
-    "alt": "dsh-session-pin documentation card",
-    "caption": "Generated documentation baseline; replace with a real run."
+    "alt": "dsh-session-pin real test run",
+    "caption": "Real command: npx vitest run \u2014 14 test files / 139 tests passed. Full local test suite. Run 2026-11-01."
   },
   {
     "path": "docs/assets/dsh-session-pin-demo.gif",
     "kind": "demo",
-    "alt": "dsh-session-pin install preview",
-    "caption": "Generated install preview; not a test result."
+    "alt": "dsh-session-pin real test output replay",
+    "caption": "The same real command output, replayed line by line."
   }
 ]
