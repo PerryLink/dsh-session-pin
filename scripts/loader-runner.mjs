@@ -90,7 +90,12 @@ try {
     const seen = entries.map(candidate => `${candidate.id}[uid=${candidate.fiber?.uid ?? 'none'}]`).join(', ')
     throw new Error(`Loader composition: the settings claim was not made by a mounted loader entry (claim uid=${claim.owner?.uid ?? 'none'}; entries: ${seen || 'none'})`)
   }
-  const config = claim.owner.config
+  // Cordis 4.1 (the host `0.2.2` line) split the fiber's configuration:
+  // `config` retains the RAW row input and `effectiveConfig` is the
+  // schema-resolved object the plugin was activated with. 4.0 exposed only the
+  // resolved object, as `config`; keep reading that name on those hosts.
+  const owner = claim.owner
+  const config = 'effectiveConfig' in owner ? owner.effectiveConfig : owner.config
   if (config === undefined || typeof config !== 'object') {
     throw new Error('Loader composition: the mounted entry carried no resolved config')
   }

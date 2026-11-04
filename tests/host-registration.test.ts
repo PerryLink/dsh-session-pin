@@ -43,6 +43,25 @@ interface LiveConfig {
 }
 
 /**
+ * The resolved Config the fiber runs with — the object the Loader handed
+ * `apply`, volatile references included. Cordis 4.1 (the host `0.2.2` line)
+ * split the fiber's configuration: `fiber.config` now holds the RAW row input
+ * and `fiber.effectiveConfig` the schema-resolved object that reached `apply`;
+ * 4.0 exposed only the resolved object, as `fiber.config`. Prefer the resolved
+ * accessor and fall back to the 4.0 name so this suite still covers the
+ * retained peer range.
+ * @param fiber - the mounted entry's fiber.
+ * @returns the live Config behind that fiber.
+ */
+function liveConfigOf(fiber: Fiber): LiveConfig {
+  // A cast, not `in`: Cordis 4.1 declares `effectiveConfig` on `Fiber`, so an
+  // `in`-narrow would leave the 4.0 fallback as `never`.
+  const resolved = (fiber as Fiber & { effectiveConfig?: unknown }).effectiveConfig
+  if (resolved !== undefined) return resolved as LiveConfig
+  return fiber.config as LiveConfig
+}
+
+/**
  * Resolve the schema exactly as the Loader does. `schemastery`'s object typing
  * derives a field's declared output from its PRE-volatile input type, so this
  * cast crosses that (upstream) typing gap once, at the test boundary; the
@@ -130,7 +149,7 @@ async function mount(configValue: Record<string, unknown>, failWrites = false): 
     emit: (event, session = { id: 's1' }) => {
       fiberCtx.emit('session/event', session, event)
     },
-    liveConfig: () => fiber.config as LiveConfig,
+    liveConfig: () => liveConfigOf(fiber),
     entryId,
     updateConfig: async (next) => {
       await entry.update({ config: next })

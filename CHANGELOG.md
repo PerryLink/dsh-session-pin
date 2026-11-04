@@ -11,6 +11,15 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- **Host pins move to the `0.2.2-rc.1` line.** Every `@deepseek-ai/dsh-*` dev/test dependency moves from `0.2.1-alpha.1` to `0.2.2-rc.1`; the vendored framework moves with the host (`@deepseek-ai/cordis` `^4.1.0`, `cordis-plugin-include` / `cordis-plugin-loader` `^1.1.0`), and `@deepseek-ai/schemastery` pins `~3.19.0` so a single copy resolves against the host line. `engines.dsh` appends `>=0.2.2-0 <0.3.0` (append-only — no supported line is dropped) and `engines.node` becomes `^22.19.0 || >=24.9.0`; every `@deepseek-ai/dsh-*` peer range gains the same `0.2.2` clause.
+
+### Fixed
+
+- **Read the fiber's resolved config, not its raw row.** Cordis `4.1.0` (the `0.2.2` host line) split the fiber's configuration: `fiber.config` now retains the RAW row input and `fiber.effectiveConfig` is the schema-resolved object handed to `apply` (`4.0` exposed only the resolved object, as `fiber.config`). The host-registration suite's live-config reader and `scripts/loader-runner.mjs` were still reading `fiber.config`, so the volatile references never reached the assertions: `maxPins.get is not a function` in the host suite and `live: false` in the composition suite. Both now prefer `effectiveConfig` and fall back to the `4.0` name, so the retained peer range still reads correctly.
+- **Derive the pin store's local mode from the `0.2.2` form snapshot.** The client `ConfigForm` snapshot no longer carries `mode: 'host' | 'memory'` — preferences always persist on the Host — so the browser half treated a remote or read-only form as writable. `PinScope` now reads `mode` only as a legacy signal and falls back to `status: 'unavailable'` or a `ready` form whose `writable` is false; a form still `loading` keeps host mode (its initial `writable` is false and is not a verdict). New `pin-store` cases pin all three states.
+
 ## [0.7.18] - 2026-10-04
 
 undefined

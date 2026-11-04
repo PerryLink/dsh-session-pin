@@ -5,8 +5,11 @@ import { emptyStoredPins, PIN_COLOR_PALETTE } from '../src/pin-core.ts'
 
 /** One settings-scope snapshot. */
 type ScopeSnapshot = {
-  mode: 'host' | 'memory'
+  /** `0.2.1` line only; the `0.2.2` `ConfigForm` snapshot dropped it. */
+  mode?: 'host' | 'memory'
   status: 'loading' | 'ready' | 'unavailable'
+  /** `0.2.2` line: whether the Host document accepts writes. */
+  writable?: boolean
   value?: PinSection
 }
 
@@ -127,6 +130,42 @@ describe('createPinStore', () => {
       ...emptyStoredPins(), pinned: ['x'], local: true, maxPins: 0, reorderOnLoad: true, pruneStale: true,
       enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
     })
+  })
+
+  it('keeps host mode on the 0.2.2 form, which carries no mode', () => {
+    // The 0.2.2 ConfigForm snapshot has no `mode`: preferences persist on the
+    // Host, so a ready form is host mode even though the legacy flag is gone.
+    const { scope, setters } = scopeDouble({ status: 'ready', writable: true, value: { pinned: ['host'], maxPins: 2 } })
+    const { storage, events } = storageDouble()
+    const store = createPinStore(scope, storage, events)
+    expect(store.read()).toEqual({
+      pinned: ['host'], workspacePinned: [], colors: {}, workspaceColors: {},
+      boards: { byId: {}, membership: {} }, tags: {}, views: [],
+      local: false, maxPins: 2, reorderOnLoad: true, pruneStale: true,
+      enableBoards: true, enableTags: true, enableViews: true, enableHealth: true, enableGoto: true,
+    })
+    void store.write({ pinned: ['next'] })
+    expect(setters).toEqual([{ field: 'pinned', value: ['next'] }])
+  })
+
+  it('stays in host mode while a 0.2.2 form is still loading (initial writable:false is not a verdict)', () => {
+    const { scope } = scopeDouble({ status: 'loading', writable: false })
+    const { storage, events } = storageDouble({ [STORAGE_KEY]: JSON.stringify({ v: 2, ...emptyStoredPins(), pinned: ['local'] }) })
+    const store = createPinStore(scope, storage, events)
+    expect(store.read().local).toBe(false)
+    expect(store.read().pinned).toEqual([])
+  })
+
+  it('degrades to browser-local storage when the Host document refuses writes', () => {
+    // `ready` + `writable: false` = the Host exposes the values but will not
+    // accept edits; pinning must degrade locally instead of dropping writes.
+    const { scope, setters } = scopeDouble({ status: 'ready', writable: false, value: { pinned: ['host'] } })
+    const { storage, events } = storageDouble()
+    const store = createPinStore(scope, storage, events)
+    expect(store.read().local).toBe(true)
+    void store.write({ pinned: ['a'] })
+    expect(setters).toEqual([])
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({ pinned: ['a'] })
   })
 
   it('reads the legacy bare-array document from browser-local storage', () => {

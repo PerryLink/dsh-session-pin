@@ -85,8 +85,19 @@ export interface PinStoreSnapshot {
  */
 export interface PinScope {
   getSnapshot(): {
-    mode: 'host' | 'memory'
+    /**
+     * Persistence mode the `0.2.1` form declared (`memory` = keep the
+     * namespace process-local). The `0.2.2` form dropped it: preferences now
+     * always persist on the Host and the field is absent, so read it only as
+     * a legacy signal and decide from `status`/`writable` below.
+     */
+    mode?: 'host' | 'memory'
     status: 'loading' | 'ready' | 'unavailable'
+    /**
+     * `0.2.2` line: whether the Host document accepts writes (`0.2.1` also
+     * carried it; absent on doubles that model only the older slice).
+     */
+    writable?: boolean
     value?: PinSection
   }
   subscribe(listener: () => void): () => void
@@ -121,7 +132,13 @@ export interface PinStore {
 /** Whether the settings transport cannot carry this namespace to the Host. */
 function isLocalMode(scope: PinScope): boolean {
   const snapshot = scope.getSnapshot()
-  return snapshot.mode === 'memory' || snapshot.status === 'unavailable'
+  // 0.2.1 line: the form declared process-local persistence outright.
+  if (snapshot.mode === 'memory') return true
+  // 0.2.2 line: `mode` is gone. `unavailable` = the Host does not expose the
+  // namespace to this client; `ready` + an unwritable document = it exposes
+  // the values but refuses edits, so pinning must stay browser-local rather
+  // than silently dropping every write.
+  return snapshot.status === 'unavailable' || (snapshot.status === 'ready' && snapshot.writable === false)
 }
 
 /**
