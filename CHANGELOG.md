@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.7.22] - 2026-11-18
+
 ### Changed
 
 - **Host pins move to the `0.2.2-rc.1` line.** Every `@deepseek-ai/dsh-*` dev/test dependency moves from `0.2.1-alpha.1` to `0.2.2-rc.1`; the vendored framework moves with the host (`@deepseek-ai/cordis` `^4.1.0`, `cordis-plugin-include` / `cordis-plugin-loader` `^1.1.0`), and `@deepseek-ai/schemastery` pins `~3.19.0` so a single copy resolves against the host line. `engines.dsh` appends `>=0.2.2-0 <0.3.0` (append-only — no supported line is dropped) and `engines.node` becomes `^22.19.0 || >=24.9.0`; every `@deepseek-ai/dsh-*` peer range gains the same `0.2.2` clause.

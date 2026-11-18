@@ -6,7 +6,7 @@
 [![dshfind](https://dshfind.com/api/badge/PerryLink/dsh-session-pin?metric=downloads)](https://dshfind.com/plugins/PerryLink/dsh-session-pin?ref=badge)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PerryLink/dsh-session-pin/badge)](https://api.securityscorecards.dev/projects/github.com/PerryLink/dsh-session-pin)
 
-> 🪦 **RETIRED — compatibility updates stopped as of 2026-10-05.** This capability is now **implemented by the official harness itself**: DeepSeek Harness **ships session pinning natively** — the session row menu and hover button in `dsh-client-ui-workspace` pin and unpin a session, the pin set persists on the Host, and pinned rows reorder among themselves, all mounted in the default Web bundle. What remained unique here was only the visual layer (per-pin row colours, boards, tags, saved views). 👉 **Use the built-in session pin instead.** This repository stays public for reference, but it will not track further host changes.
+> 🪦 **RETIRED — compatibility updates stopped as of 2026-11-18.** This capability is now **implemented by the official harness itself**: DeepSeek Harness **ships session pinning natively** — the session row menu and hover button in `dsh-v0.2.2-rc.4`（2026-11-18）；`dsh-client-ui-workspace` pin and unpin a session, the pin set persists on the Host, and pinned rows reorder among themselves, all mounted in the default Web bundle. What remained unique here was only the visual layer (per-pin row colours, boards, tags, saved views). 👉 **Use the built-in session pin instead.** This repository stays public for reference, but it will not track further host changes.
 
 **Pin sessions and workspaces to the top of the DeepSeek Harness sidebar with per-pin row colors.**
 
@@ -42,7 +42,7 @@
 
 | Surface | Status |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.2.1-alpha.1` (GitHub tag; verified 2026-09-22: dual-ruler typecheck + unit/composition suites + static seam checks; browser pass pending maintainer). npm dependency line `0.1.7-rc.2`, peers `>=0.1.2-rc.1 <0.2.0 \|\| >=0.1.5-alpha.1 <0.2.0 \|\| >=0.1.6-0 <0.2.0 \|\| >=0.1.7-0 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.2.2-rc.4` (GitHub tag; verified 2026-11-18: dual-ruler typecheck + unit/composition suites + static seam checks; browser pass pending maintainer). npm dependency line `0.1.7-rc.2`, peers `>=0.1.2-rc.1 <0.2.0 \|\| >=0.1.5-alpha.1 <0.2.0 \|\| >=0.1.6-0 <0.2.0 \|\| >=0.1.7-0 <0.2.0 \|\| >=0.2.2-0 <0.3.0`. |
 | Node | `>= 22` (development floor) |
 | Platforms | Web GUI (dual-face: host + browser) |
 | Model | Any (UI-only — no model traffic, no session events) |

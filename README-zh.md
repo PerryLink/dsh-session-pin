@@ -21,7 +21,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/dsh-session-pin)](https://www.npmjs.com/package/dsh-session-pin)
 [![dshfind](https://dshfind.com/api/badge/PerryLink/dsh-session-pin?metric=downloads&lang=zh)](https://dshfind.com/zh/plugins/PerryLink/dsh-session-pin?ref=badge)
 
-> 🪦 **已退役 —— 自 2026-10-05 起停止兼容性更新。** 该能力**官方宿主已自行实现**：DeepSeek Harness **原生自带会话置顶**——`dsh-client-ui-workspace` 的会话行菜单与悬停按钮即可置顶/取消置顶，置顶集合在宿主侧持久化，置顶行之间还能拖拽排序，且默认挂载在 Web 组合里。本包唯一剩下的只是外观层（逐 pin 行颜色、看板、标签、保存视图）。👉 **请改用官方内置的会话置顶。** 本仓保留公开以供查阅，但不再跟随宿主变化做兼容性更新。
+> 🪦 **已退役 —— 自 2026-11-18 起停止兼容性更新。** 该能力**官方宿主已自行实现**：DeepSeek Harness **原生自带会话置顶**——`dsh-v0.2.2-rc.4`（2026-11-18）；`dsh-client-ui-workspace` 的会话行菜单与悬停按钮即可置顶/取消置顶，置顶集合在宿主侧持久化，置顶行之间还能拖拽排序，且默认挂载在 Web 组合里。本包唯一剩下的只是外观层（逐 pin 行颜色、看板、标签、保存视图）。👉 **请改用官方内置的会话置顶。** 本仓保留公开以供查阅，但不再跟随宿主变化做兼容性更新。
 
 [English](README.md) · [简体中文](README-zh.md) · [Español](README-es.md) · [Português](README-pt.md) · [हिन्दी](README-hi.md)
 
@@ -40,7 +40,7 @@
 
 | 维度 | 状态 |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.2.1-alpha.1`（GitHub tag，2026-09-22 已核验：双尺子 typecheck + 单元/组合测试套件 + 静态接缝检查；浏览器人工轮待维护者）。npm 依赖钉号 `0.1.7-rc.2`，peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0`。 |
+| Harness | DeepSeek Harness `dsh-v0.2.2-rc.4`（GitHub tag，2026-11-18 已核验：双尺子 typecheck + 单元/组合测试套件 + 静态接缝检查；浏览器人工轮待维护者）。npm 依赖钉号 `0.1.7-rc.2`，peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0 || >=0.2.2-0 <0.3.0`。 |
 | Node | `>= 22`（开发环境下限） |
 | 平台 | Web GUI（双面：Host + 浏览器） |
 | 模型 | 任意（纯 UI——无模型流量、无会话事件） |

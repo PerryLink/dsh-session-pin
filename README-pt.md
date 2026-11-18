@@ -19,7 +19,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/dsh-session-pin)](https://www.npmjs.com/package/dsh-session-pin)
 [![dshfind](https://dshfind.com/api/badge/PerryLink/dsh-session-pin?metric=downloads&lang=pt)](https://dshfind.com/pt/plugins/PerryLink/dsh-session-pin?ref=badge)
 
-> 🪦 **APOSENTADO — atualizações de compatibilidade interrompidas desde 2026-10-05.** Esta capacidade agora é **implementada pelo próprio harness oficial**: o DeepSeek Harness **inclui a fixação de sessões nativamente** — o menu da linha e o botão ao passar o mouse em `dsh-client-ui-workspace` fixam e desafixam uma sessão, o conjunto persiste no Host e as linhas fixadas se reordenam entre si, tudo montado no bundle Web padrão. O que restava de próprio era apenas a camada visual (cores por fixação, quadros, etiquetas, visões salvas). 👉 **Use a fixação de sessões integrada.** Este repositório permanece público como referência, mas não acompanhará mais as mudanças do host.
+> 🪦 **APOSENTADO — atualizações de compatibilidade interrompidas desde 2026-11-18.** Esta capacidade agora é **implementada pelo próprio harness oficial**: o DeepSeek Harness **inclui a fixação de sessões nativamente** — o menu da linha e o botão ao passar o mouse em `dsh-v0.2.2-rc.4`（2026-11-18）；`dsh-client-ui-workspace` fixam e desafixam uma sessão, o conjunto persiste no Host e as linhas fixadas se reordenam entre si, tudo montado no bundle Web padrão. O que restava de próprio era apenas a camada visual (cores por fixação, quadros, etiquetas, visões salvas). 👉 **Use a fixação de sessões integrada.** Este repositório permanece público como referência, mas não acompanhará mais as mudanças do host.
 
 [English](README.md) · [简体中文](README-zh.md) · [Español](README-es.md) · [Português](README-pt.md) · [हिन्दी](README-hi.md)
 
@@ -38,7 +38,7 @@ Este plugin faz parte da [família de plugins DSH](https://github.com/PerryLink)
 
 | Superfície | Status |
 |---|---|
-| Harness | DeepSeek Harness `dsh-v0.2.1-alpha.1` (tag do GitHub; verificado em 2026-09-22: typecheck de régua dupla + suítes unitárias/de composição + verificações estáticas de costura; a rodada de navegador fica com o mantenedor). Pin npm `0.1.7-rc.2`, peers `>=0.1.2-rc.1 <0.2.0 || >=0.1.5-alpha.1 <0.2.0 || >=0.1.6-0 <0.2.0 || >=0.1.7-0 <0.2.0`. |
+| Harness | DeepSeek Harness `dsh-v0.2.2-rc.4` (tag do GitHub; verificado em 2026-11-18: typecheck de régua dupla + suítes unitárias/de composição + verificações estáticas de costura; a rodada de navegador fica com o mantenedor). Pin npm `0.1.7-rc.2`, peers `>=0.1.2-rc.1 <0.2.0 \|\| >=0.1.5-alpha.1 <0.2.0 \|\| >=0.1.6-0 <0.2.0 \|\| >=0.1.7-0 <0.2.0 \|\| >=0.2.2-0 <0.3.0`. |
 | Node | `>= 22` (piso de desenvolvimento) |
 | Plataformas | Web GUI (duas faces: host + navegador) |
 | Modelo | Qualquer (somente UI — sem tráfego de modelo, sem eventos de sessão) |
