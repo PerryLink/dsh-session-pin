@@ -14,6 +14,8 @@ All notable changes to this project are documented in this file. The format foll
 ### Changed
 
 - **Host pins move to the `0.2.2-rc.1` line.** Every `@deepseek-ai/dsh-*` dev/test dependency moves from `0.2.1-alpha.1` to `0.2.2-rc.1`; the vendored framework moves with the host (`@deepseek-ai/cordis` `^4.1.0`, `cordis-plugin-include` / `cordis-plugin-loader` `^1.1.0`), and `@deepseek-ai/schemastery` pins `~3.19.0` so a single copy resolves against the host line. `engines.dsh` appends `>=0.2.2-0 <0.3.0` (append-only — no supported line is dropped) and `engines.node` becomes `^22.19.0 || >=24.9.0`; every `@deepseek-ai/dsh-*` peer range gains the same `0.2.2` clause.
+- **Align the dependency pins with the published `0.2.2-rc.4` line.** Every `@deepseek-ai/dsh-*` devDependency moves from `0.2.2-rc.1` to `0.2.2-rc.4` (npm `next`), and `pnpm-lock.yaml` re-resolves against the published rc.4 artifacts; the append-only `>=0.2.2-0 <0.3.0` clause already present in `engines.dsh` and every `@deepseek-ai/dsh-*` peer range is retained unchanged, so no supported host line is narrowed. No runtime behaviour changed.
+- **Gates (all exit 0).** `pnpm install --no-frozen-lockfile`, `pnpm install --frozen-lockfile`, `typecheck`, `typecheck:ci`, `test` (142/142), `test:coverage`, `lint` (0 errors, 16 pre-existing warnings), `check:readmes`, `build`, `verify:self-contained`, `verify:artifacts`; `pnpm pack` to a mktemp destination succeeded. plugin-doctor 0.4.4 (`--no-smoke --only R,K`): pass=15, warn=3 (K3/K5/K6, all pre-existing), fail=0. This repo has no `typecheck:checkout`, `check:lockfile`, `verify:readme-sync` or `pack:check` scripts (n/a).
 
 ### Fixed
 
